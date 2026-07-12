@@ -247,13 +247,43 @@ class Game:
     # ------------------------------------------------------------------
 
     def update_player_animation(self):
-        if self.player.in_air:
-            self.player.update_action(2)
-            self.player.still_cooldown = 400
-        elif self.sprinting and (self.moving_left or self.moving_right):
+        player = self.player
+        moving = self.moving_left or self.moving_right
+
+        if player.in_air:
+            # in aria il frame segue la velocità verticale:
+            # slancio in salita, planata all'apice, caduta in discesa
+            player.update_action(2)
+            vel = player.vel_y
+            if vel < -6:
+                frame = 0 if moving else 1
+            elif vel < -2:
+                frame = 2
+            elif vel < 2:
+                frame = 3
+            elif vel < 6:
+                frame = 4
+            else:
+                frame = 5
+            player.manual_frame = frame
+            player.landing_timer = 12
+            player.still_cooldown = 400
+            return
+
+        if player.landing_timer > 0 and not moving:
+            # atterraggio: accucciata (6) e rialzata (7-9)
+            player.update_action(2)
+            player.landing_timer -= 1
+            player.manual_frame = 6 + min((12 - player.landing_timer) // 3, 3)
+            player.still_cooldown = 400
+            return
+
+        player.manual_frame = None
+        player.landing_timer = 0
+        if self.sprinting and moving:
             self.player.update_action(4)
             self.player.still_cooldown = 400
-        elif self.moving_left or self.moving_right:
+        elif moving:
             self.player.update_action(1)
             self.player.still_cooldown = 400
             self.player.jump_count -= 0.1

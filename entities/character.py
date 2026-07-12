@@ -39,6 +39,10 @@ class Character(pygame.sprite.Sprite):
         self.vision = pygame.Rect(0, 0, 200, 20)
         self.hurt_cooldown = 0
         self.contact_damage = 10
+        # se impostato, il frame è scelto dalla fisica (salto/caduta)
+        # invece che dal timer dell'animazione
+        self.manual_frame = None
+        self.landing_timer = 0
         self.idling = False
         self.idling_count = 0
 
@@ -245,6 +249,11 @@ class Character(pygame.sprite.Sprite):
                         self.idling = False
 
     def update_animation(self):
+        if self.manual_frame is not None:
+            frames = self.animation_list[self.action]
+            self.frame_index = min(self.manual_frame, len(frames) - 1)
+            self.image = frames[self.frame_index]
+            return
         ANIMATION_COOLDOWN = 100
         self.image = self.animation_list[self.action][self.frame_index]
         if pygame.time.get_ticks() - self.update_time > ANIMATION_COOLDOWN:
@@ -267,6 +276,7 @@ class Character(pygame.sprite.Sprite):
             self.health = 0
             self.speed = 0
             self.alive = False
+            self.manual_frame = None
             self.update_action(5)
 
     def draw(self, surface):
