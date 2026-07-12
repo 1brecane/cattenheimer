@@ -1,7 +1,7 @@
 import pygame
 
-from settings import TILE_SIZE, WHITE
-from renderer import draw_text
+from core.settings import TILE_SIZE, WHITE
+from world.renderer import draw_text
 
 
 class Sign(pygame.sprite.Sprite):

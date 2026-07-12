@@ -1,6 +1,6 @@
 import pygame
 
-from settings import TILE_SIZE, BLACK, RED, GREEN
+from core.settings import TILE_SIZE, BLACK, RED, GREEN
 
 
 class ItemBox(pygame.sprite.Sprite):

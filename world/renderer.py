@@ -1,7 +1,7 @@
 import pygame
 import pytmx
 
-from settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 def draw_text(text, font, text_col, x, y, surface):

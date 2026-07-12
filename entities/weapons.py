@@ -2,8 +2,8 @@ import os
 
 import pygame
 
-from settings import GRAVITY, TILE_SIZE
-from collision import check_terrain_collision
+from core.settings import GRAVITY, TILE_SIZE
+from world.collision import check_terrain_collision
 
 
 class Grenade(pygame.sprite.Sprite):

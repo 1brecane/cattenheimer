@@ -1,6 +1,6 @@
 import pygame
 
-from settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 class Camera:

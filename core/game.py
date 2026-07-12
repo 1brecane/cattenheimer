@@ -1,14 +1,14 @@
 import pygame
 
-import button
-from settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE
-from assets import load_sounds, load_images, load_fonts
-from camera import Camera
-from renderer import draw_text, draw_parallax_bg, draw_map, load_map
-from character import Character
-from items import ItemBox, HealthBar
-from weapons import Grenade
-from sign import Sign
+from ui import button
+from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE
+from core.assets import load_sounds, load_images, load_fonts
+from world.camera import Camera
+from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map
+from entities.character import Character
+from entities.items import ItemBox, HealthBar
+from entities.weapons import Grenade
+from entities.sign import Sign
 
 
 class Game:
