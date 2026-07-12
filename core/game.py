@@ -8,7 +8,7 @@ from world.camera import Camera
 from world.collision import build_terrain_geometry
 from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
-from entities.items import ItemBox, HealthBar
+from entities.items import ItemBox, HealthBar, StaminaBar
 from entities.weapons import Grenade, GRENADE_TYPES, GRENADE_ORDER
 from entities.sign import Sign
 
@@ -113,6 +113,7 @@ class Game:
         self.player = Character("Player", 500, 500, 3, 3, 100, True, self)
         self.all_sprites.add(self.player)
         self.health_bar = HealthBar(10, 10, self.player.health, self.player.health)
+        self.stamina_bar = StaminaBar(10, 31, self.player.max_stamina)
 
         diff = DIFFICULTIES[self.difficulty]
         enemy_data = [("Enemy1", 2000, 850, 100), ("Enemy2", 1300, 200, 200)]
@@ -280,7 +281,7 @@ class Game:
 
         player.manual_frame = None
         player.landing_timer = 0
-        if self.sprinting and moving:
+        if self.sprinting and moving and player.can_sprint():
             self.player.update_action(4)
             self.player.still_cooldown = 400
         elif moving:
@@ -382,11 +383,12 @@ class Game:
 
     def draw_hud(self):
         self.health_bar.draw(self.player.health, self.window)
+        self.stamina_bar.draw(self.player.stamina, self.player.exhausted, self.window)
 
         for i, key in enumerate(GRENADE_ORDER):
             cfg = GRENADE_TYPES[key]
             count = getattr(self.player, cfg["ammo_attr"])
-            slot = pygame.Rect(10 + i * 48, 35, 44, 44)
+            slot = pygame.Rect(10 + i * 48, 47, 44, 44)
             selected = key == self.selected_grenade
 
             bg = pygame.Surface(slot.size, pygame.SRCALPHA)
@@ -405,7 +407,7 @@ class Game:
             draw_text(str(count), self.fonts["small"], WHITE, slot.right - 12, slot.bottom - 15, self.window)
 
         cfg = GRENADE_TYPES[self.selected_grenade]
-        draw_text(cfg["label"], self.fonts["small"], WHITE, 10, 84, self.window)
+        draw_text(cfg["label"], self.fonts["small"], WHITE, 10, 96, self.window)
 
     def draw_sprites(self):
         for entity in self.all_sprites:

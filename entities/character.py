@@ -24,6 +24,9 @@ class Character(pygame.sprite.Sprite):
         self.start_grenades = 0
         self.health = health
         self.max_health = self.health
+        self.stamina = 100
+        self.max_stamina = 100
+        self.exhausted = False
         self.direction = 1
         self.vel_y = 0
         self.jump = False
@@ -90,25 +93,35 @@ class Character(pygame.sprite.Sprite):
             self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
         )
 
+    def can_sprint(self):
+        return self.sprinting_possibility and not self.exhausted and self.stamina > 0
+
     def move(self, moving_left, moving_right, sprinting=False):
         dx = 0
         dy = 0
+        sprint_active = sprinting and self.can_sprint() and (moving_left or moving_right)
 
         if moving_left:
-            if sprinting and self.sprinting_possibility:
-                dx = -self.speed * 2
-            else:
-                dx = -self.speed
+            dx = -self.speed * 2 if sprint_active else -self.speed
             self.flip = True
             self.direction = -1
 
         if moving_right:
-            if sprinting and self.sprinting_possibility:
-                dx = self.speed * 2
-            else:
-                dx = self.speed
+            dx = self.speed * 2 if sprint_active else self.speed
             self.flip = False
             self.direction = 1
+
+        # stamina: si consuma correndo, si rigenera altrimenti;
+        # a zero si è sfiniti finché non si ricarica un po'
+        if sprint_active:
+            self.stamina -= 0.6
+            if self.stamina <= 0:
+                self.stamina = 0
+                self.exhausted = True
+        else:
+            self.stamina = min(self.stamina + 0.25, self.max_stamina)
+            if self.exhausted and self.stamina >= 25:
+                self.exhausted = False
 
         if self.jump and not self.in_air:
             self.game.sounds["jump"].play()

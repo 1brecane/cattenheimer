@@ -1,6 +1,6 @@
 import pygame
 
-from core.settings import TILE_SIZE, BLACK, RED, GREEN
+from core.settings import TILE_SIZE, BLACK, RED, GREEN, YELLOW
 from entities.weapons import GRENADE_TYPES
 
 GRENADE_ITEMS = {
@@ -51,3 +51,17 @@ class HealthBar:
         pygame.draw.rect(surface, BLACK, (self.x - 2, self.y - 2, 204, 19))
         pygame.draw.rect(surface, RED, (self.x, self.y, 200, 15))
         pygame.draw.rect(surface, GREEN, (self.x, self.y, 200 * ratio, 15))
+
+
+class StaminaBar:
+    def __init__(self, x, y, max_stamina):
+        self.x = x
+        self.y = y
+        self.max_stamina = max_stamina
+
+    def draw(self, stamina, exhausted, surface):
+        ratio = stamina / self.max_stamina
+        pygame.draw.rect(surface, BLACK, (self.x - 2, self.y - 2, 204, 12))
+        pygame.draw.rect(surface, (60, 60, 60), (self.x, self.y, 200, 8))
+        color = RED if exhausted else YELLOW
+        pygame.draw.rect(surface, color, (self.x, self.y, 200 * ratio, 8))
