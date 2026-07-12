@@ -1,6 +1,6 @@
 import pygame
 
-from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, CAMERA_OFFSET_Y
 
 
 class Camera:
@@ -14,7 +14,7 @@ class Camera:
 
     def update(self, target):
         x = -target.rect.centerx + SCREEN_WIDTH // 2
-        y = -target.rect.centery + SCREEN_HEIGHT // 2
+        y = -target.rect.centery + SCREEN_HEIGHT // 2 + CAMERA_OFFSET_Y
 
         x = min(0, x)
         y = min(0, y)

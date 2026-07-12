@@ -5,6 +5,10 @@ FPS = 60
 GRAVITY = 0.45
 TILE_SIZE = 40
 
+# sposta la visuale verso l'alto: il player sta sotto il centro dello
+# schermo, così si vede più cielo e meno terreno
+CAMERA_OFFSET_Y = 100
+
 RED = (229, 101, 46)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)

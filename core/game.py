@@ -5,7 +5,7 @@ from ui.button import TextButton
 from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE, DIFFICULTIES, DIFFICULTY_ORDER
 from core.assets import load_sounds, load_images, load_fonts
 from world.camera import Camera
-from world.collision import build_terrain_hitboxes
+from world.collision import build_terrain_geometry
 from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
 from entities.items import ItemBox, HealthBar
@@ -34,9 +34,10 @@ class Game:
         visible_layers = list(self.tmx_data.visible_layers)
         self.terrain_layer_index = visible_layers.index(terrain_layer)
 
-        # hitbox per-tile basate sui pixel visibili (i mezzi blocchi non
-        # collidono più come tile interi)
-        self.terrain_hitboxes = build_terrain_hitboxes(self.tmx_data, self.terrain_layer_index)
+        # geometria per-tile dai pixel visibili: i mezzi blocchi non
+        # collidono come tile interi e i pendii hanno un profilo di altezze
+        self.terrain_hitboxes, self.terrain_heightmaps, self.terrain_hitboxes_full = \
+            build_terrain_geometry(self.tmx_data, self.terrain_layer_index)
 
         # Pre-render the whole map once: drawing becomes a single blit per frame
         self.map_surface = build_map_surface(self.tmx_data, 2)
@@ -381,13 +382,12 @@ class Game:
             # lampeggio durante i frame di invulnerabilità
             if getattr(entity, "hurt_cooldown", 0) > 0 and (entity.hurt_cooldown // 4) % 2:
                 continue
+            image = entity.image
             if hasattr(entity, "flip"):
-                self.window.blit(
-                    pygame.transform.flip(entity.image, entity.flip, False),
-                    self.camera.apply(entity),
-                )
-            else:
-                self.window.blit(entity.image, self.camera.apply(entity))
+                image = pygame.transform.flip(image, entity.flip, False)
+            # ancora al centro-basso: i frame hanno dimensioni diverse tra loro
+            draw_rect = image.get_rect(midbottom=entity.rect.midbottom)
+            self.window.blit(image, draw_rect.move(self.camera.camera.topleft))
 
     # ------------------------------------------------------------------
     # Main game loop

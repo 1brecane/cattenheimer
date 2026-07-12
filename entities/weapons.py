@@ -49,8 +49,9 @@ class Grenade(pygame.sprite.Sprite):
         self.exploded = False
 
     def check_collision(self):
+        # per le granate anche i pendii valgono come rettangoli pieni
         return check_terrain_collision(
-            self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
+            self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes_full
         )
 
     def update(self):

@@ -4,7 +4,7 @@ import random
 import pygame
 
 from core.settings import GRAVITY, TILE_SIZE
-from world.collision import check_terrain_collision
+from world.collision import check_terrain_collision, slope_surface_y
 
 
 class Character(pygame.sprite.Sprite):
@@ -121,12 +121,13 @@ class Character(pygame.sprite.Sprite):
         dy += self.vel_y
 
         self.rect.y += dy
+        landed = False
         collision_rect = self.check_collision()
         if collision_rect:
             if dy > 0:
                 self.rect.bottom = collision_rect.top
                 self.vel_y = 0
-                self.in_air = False
+                landed = True
             elif dy < 0:
                 self.rect.top = collision_rect.bottom
                 self.vel_y = 0
@@ -143,11 +144,45 @@ class Character(pygame.sprite.Sprite):
                 elif dx < 0:
                     self.rect.left = collision_rect.right
 
+        # pendii: i piedi seguono il profilo del terreno
+        if self.vel_y >= 0:
+            surf = self.slope_surface()
+            if surf is not None:
+                sink = self.rect.bottom - surf
+                if 0 <= sink <= self.tmx_data.tileheight * 2 or \
+                        (not self.in_air and -16 <= sink < 0):
+                    self.rect.bottom = surf
+                    self.vel_y = 0
+                    landed = True
+
+        # stato a terra: in salita si è sempre in aria, altrimenti sonda
+        # 2px sotto i piedi (così camminare giù da un bordo attiva la caduta)
+        if self.vel_y < 0:
+            self.in_air = True
+        elif landed:
+            self.in_air = False
+        else:
+            self.in_air = not self.is_on_ground()
+
         # limiti orizzontali della mappa e morte per caduta nel vuoto
         self.rect.left = max(self.rect.left, 0)
         self.rect.right = min(self.rect.right, self.game.map_width)
         if self.rect.top > self.game.map_height:
             self.health = 0
+
+    def slope_surface(self):
+        return slope_surface_y(
+            self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_heightmaps
+        )
+
+    def is_on_ground(self):
+        probe = self.rect.move(0, 2)
+        if check_terrain_collision(
+            probe, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
+        ):
+            return True
+        surf = self.slope_surface()
+        return surf is not None and abs(surf - self.rect.bottom) <= 2
 
     def try_step_up(self, collision_rect):
         """Sale automaticamente gradini alti al massimo un tile, se c'è spazio sopra."""
