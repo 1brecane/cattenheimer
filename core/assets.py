@@ -49,7 +49,9 @@ def load_images():
 
 
 def load_fonts():
+    big = pygame.font.Font("Assets/fonts/PixelOperator8-Bold.ttf", 36)
+    big.set_italic(True)
     return {
-        "small": pygame.font.SysFont("Pixel Operator 8", 12),
-        "big": pygame.font.SysFont("Pixel Operator 8", 36, True, True),
+        "small": pygame.font.Font("Assets/fonts/PixelOperator8.ttf", 12),
+        "big": big,
     }

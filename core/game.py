@@ -4,7 +4,7 @@ from ui import button
 from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE
 from core.assets import load_sounds, load_images, load_fonts
 from world.camera import Camera
-from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map
+from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
 from entities.items import ItemBox, HealthBar
 from entities.weapons import Grenade
@@ -31,6 +31,9 @@ class Game:
         terrain_layer = self.tmx_data.get_layer_by_name("terrain")
         visible_layers = list(self.tmx_data.visible_layers)
         self.terrain_layer_index = visible_layers.index(terrain_layer)
+
+        # Pre-render the whole map once: drawing becomes a single blit per frame
+        self.map_surface = build_map_surface(self.tmx_data, 2)
 
         self.camera = Camera(map_width, map_height)
 
@@ -114,26 +117,8 @@ class Game:
         self.grenade_group.empty()
         self.explosion_group.empty()
         self.item_box_group.empty()
-
-        item_data = [
-            ("Health", 1850, 345),
-            ("Atom grenade", 1750, 310),
-            ("Classic grenade", 2800, 470),
-            ("Impact grenade", 2325, 1175),
-        ]
-        for item_type, x, y in item_data:
-            box = ItemBox(item_type, x, y, self)
-            self.item_box_group.add(box)
-            self.all_sprites.add(box)
-
-        self.player = Character("Player", 500, 500, 3, 3, 100, True, self)
-        self.all_sprites.add(self.player)
-        self.health_bar = HealthBar(10, 10, self.player.health, self.player.health)
-
-        self.enemy1 = Character("Enemy1", 2000, 850, 3, 2, 100, False, self)
-        self.enemy2 = Character("Enemy2", 1300, 200, 3, 2, 200, False, self)
-        self.enemy_group.add(self.enemy1, self.enemy2)
-        self.all_sprites.add(self.enemy1, self.enemy2)
+        self.sign_group.empty()
+        self.setup_level()
 
     # ------------------------------------------------------------------
     # Input handling
@@ -322,27 +307,24 @@ class Game:
             else:
                 self.camera.update(self.player)
                 draw_parallax_bg(self.camera, self.images["bg_layers"], self.window)
-                draw_map(self.tmx_data, self.window, 2, self.camera)
+                draw_map(self.map_surface, self.window, self.camera)
                 self.draw_hud()
+
+                for enemy in self.enemy_group:
+                    enemy.ai(self.player)
 
                 self.all_sprites.update()
                 self.draw_sprites()
 
-                for enemy in self.enemy_group:
-                    enemy.ai(self.player)
-                    enemy.update()
-
-                self.grenade_group.update()
-                self.item_box_group.update()
-                self.explosion_group.update()
-                self.sign_group.update()
+                for sign in self.sign_group:
+                    sign.draw_text_overlay()
 
                 if self.player.alive:
                     self.handle_grenades()
                     self.update_player_animation()
                     self.player.move(self.moving_left, self.moving_right, self.sprinting)
 
-                    if self.enemy2.health <= 0 and self.enemy1.health <= 0:
+                    if not any(enemy.alive for enemy in self.enemy_group):
                         draw_text(
                             "VITTORIA", self.fonts["big"], WHITE,
                             SCREEN_WIDTH // 2 - 135, SCREEN_HEIGHT // 2 - 100, self.window,

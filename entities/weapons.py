@@ -23,6 +23,7 @@ class Grenade(pygame.sprite.Sprite):
         self.direction = direction
         self.bounce = bounce
         self.bounce_factor = -0.5
+        self.exploded = False
 
     def check_collision(self):
         return check_terrain_collision(self.rect, self.tmx_data, self.game.terrain_layer_index)
@@ -37,64 +38,47 @@ class Grenade(pygame.sprite.Sprite):
         if collision_rect:
             if dy > 0:
                 self.rect.bottom = collision_rect.top
-                dy = collision_rect.top - self.rect.bottom + 0.01
-                if self.impact:
-                    self.explosion_function()
-                if self.bounce:
-                    self.vel_y *= self.bounce_factor
-                    self.speed -= 1
-                else:
-                    self.speed = 0
-                if self.speed <= 0:
-                    self.speed = 0
-            elif dy < 0:
+            else:
                 self.rect.top = collision_rect.bottom
+            if self.impact:
+                self.explosion_function()
+                return
+            if self.bounce:
+                self.vel_y *= self.bounce_factor
+                self.speed = max(self.speed - 1, 0)
+            else:
                 self.vel_y = 0
-                if self.impact:
-                    self.explosion_function()
-                if self.bounce:
-                    self.vel_y *= self.bounce_factor
-                    self.speed -= 1
-                else:
-                    self.speed = 0
-                if self.speed <= 0:
-                    self.speed = 0
+                self.speed = 0
 
         self.rect.x += dx
         collision_rect = self.check_collision()
         if collision_rect:
             if dx > 0:
                 self.rect.right = collision_rect.left
-                if self.impact:
-                    self.explosion_function()
-                if self.bounce:
-                    self.direction *= -1
-                else:
-                    self.speed = 0
-            elif dx < 0:
+            else:
                 self.rect.left = collision_rect.right
-                if self.impact:
-                    self.explosion_function()
-                if self.bounce:
-                    self.direction *= -1
-                else:
-                    self.speed = 0
+            if self.impact:
+                self.explosion_function()
+                return
+            if self.bounce:
+                self.direction *= -1
+            else:
+                self.speed = 0
 
         if self.impact:
             for enemy in self.game.enemy_group:
-                if enemy.alive:
-                    if pygame.sprite.spritecollide(enemy, self.game.grenade_group, False):
-                        self.explosion_function()
-                    else:
-                        self.timer -= 1
-                        if self.timer <= 0:
-                            self.explosion_function()
-        else:
-            self.timer -= 1
-            if self.timer <= 0:
-                self.explosion_function()
+                if enemy.alive and self.rect.colliderect(enemy.rect):
+                    self.explosion_function()
+                    return
+
+        self.timer -= 1
+        if self.timer <= 0:
+            self.explosion_function()
 
     def explosion_function(self):
+        if self.exploded:
+            return
+        self.exploded = True
         self.game.sounds["explosion"].play()
         explosion = Explosion(self.rect.centerx, self.rect.bottom, 1.5, self.expl_type, self.damage)
         self.kill()
@@ -123,7 +107,9 @@ class Explosion(pygame.sprite.Sprite):
             img = pygame.image.load(
                 f"Assets/Sprites/Explosions/Pack/explosion-1-{expl_type}/{num}.png"
             ).convert_alpha()
-            img = pygame.transform.scale(img, (img.get_width() * scale, img.get_height() * scale))
+            img = pygame.transform.scale(
+                img, (int(img.get_width() * scale), int(img.get_height() * scale))
+            )
             self.images.append(img)
         self.frame_index = 0
         self.image = self.images[self.frame_index]
@@ -136,11 +122,10 @@ class Explosion(pygame.sprite.Sprite):
     def update(self):
         EXPLOSION_SPEED = 10
         self.counter += 1
-        self.image = self.images[self.frame_index]
         if self.counter >= EXPLOSION_SPEED:
             self.counter = 0
             self.frame_index += 1
-        if self.frame_index >= self.num_of_frames:
-            self.kill()
-        else:
-            self.image = self.images[self.frame_index]
+            if self.frame_index >= self.num_of_frames:
+                self.kill()
+                return
+        self.image = self.images[self.frame_index]

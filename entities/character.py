@@ -32,7 +32,7 @@ class Character(pygame.sprite.Sprite):
         self.animation_list = []
         self.frame_index = 0
         self.action = 0
-        self.update_time = 60
+        self.update_time = pygame.time.get_ticks()
         self.still_cooldown = 400
         self.jump_count = 0
         self.move_count = 0
@@ -103,7 +103,7 @@ class Character(pygame.sprite.Sprite):
 
         self.vel_y += GRAVITY
         if self.vel_y > 10:
-            self.vel_y
+            self.vel_y = 10
         dy += self.vel_y
 
         self.rect.y += dy

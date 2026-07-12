@@ -22,17 +22,34 @@ def load_map(filename):
     return pytmx.util_pygame.load_pygame(filename)
 
 
-def draw_map(tmx_data, surface, scale, camera):
+def build_map_surface(tmx_data, scale):
+    """Pre-renderizza tutti i layer visibili della mappa su un'unica surface."""
+    width = tmx_data.width * tmx_data.tilewidth * scale
+    height = tmx_data.height * tmx_data.tileheight * scale
+    map_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+
+    scaled_tiles = {}
     for layer in tmx_data.visible_layers:
         if isinstance(layer, pytmx.TiledTileLayer):
             for x, y, gid in layer:
-                tile = tmx_data.get_tile_image_by_gid(gid)
-                if tile:
-                    tile_x = x * tmx_data.tilewidth * scale + camera.camera.x
-                    tile_y = y * tmx_data.tileheight * scale + camera.camera.y
-                    if -50 <= tile_x < SCREEN_WIDTH and -50 <= tile_y < SCREEN_HEIGHT:
-                        scaled_tile = pygame.transform.scale(
-                            tile,
-                            (int(tile.get_width() * scale), int(tile.get_height() * scale)),
-                        )
-                        surface.blit(scaled_tile, (tile_x, tile_y))
+                if not gid:
+                    continue
+                tile = scaled_tiles.get(gid)
+                if tile is None:
+                    img = tmx_data.get_tile_image_by_gid(gid)
+                    if img is None:
+                        continue
+                    tile = pygame.transform.scale(
+                        img,
+                        (int(img.get_width() * scale), int(img.get_height() * scale)),
+                    )
+                    scaled_tiles[gid] = tile
+                map_surface.blit(
+                    tile,
+                    (x * tmx_data.tilewidth * scale, y * tmx_data.tileheight * scale),
+                )
+    return map_surface
+
+
+def draw_map(map_surface, surface, camera):
+    surface.blit(map_surface, (camera.camera.x, camera.camera.y))
