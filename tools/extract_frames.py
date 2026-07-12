@@ -1,11 +1,11 @@
-"""Ri-estrae i frame del Player dallo spritesheet originale.
+"""Re-extracts the Player frames from the original sprite sheet.
 
-I frame nelle cartelle Assets/Sprites/Player/* sono ritagli 16x16, ma lo
-sheet ha celle logiche 32x32: le pose che escono dal ritaglio (es. il
-salto) risultano mozzate. Questo script localizza ogni frame nello sheet,
-prende la cella 32x32 completa e salva il ritaglio stretto sul contenuto.
+The frames in Assets/Sprites/Player/* are 16x16 crops, but the sheet
+uses 32x32 logical cells: poses that overflow the crop (e.g. the jump)
+end up clipped. This script locates each frame in the sheet, takes the
+full 32x32 cell and saves the tight crop of its content.
 
-Uso: python tools/extract_frames.py
+Usage: python tools/extract_frames.py
 """
 
 import os
@@ -19,8 +19,8 @@ CELL = 32
 
 
 def normalized_bytes(surface):
-    """RGBA con i pixel trasparenti azzerati (i canali RGB dei pixel
-    invisibili differiscono tra sheet e frame estratti)."""
+    """RGBA with transparent pixels zeroed out (the RGB channels of
+    invisible pixels differ between the sheet and the extracted frames)."""
     px = bytearray(pygame.image.tobytes(surface.convert_alpha(), "RGBA"))
     for i in range(0, len(px), 4):
         if px[i + 3] == 0:
@@ -31,7 +31,7 @@ def normalized_bytes(surface):
 
 
 def find_in_sheet(sheet_px, sheet_size, target):
-    """Cerca il frame 16x16 nello sheet, su griglia 8px poi 1px."""
+    """Searches for the 16x16 frame in the sheet, on an 8px grid then 1px."""
     w, h = sheet_size
     row_len = FRAME * 4
     for step in (FRAME // 2, 1):
@@ -60,11 +60,11 @@ def main():
             path = os.path.join(anim_dir, name)
             frame = pygame.image.load(path).convert_alpha()
             if frame.get_size() != (FRAME, FRAME):
-                print(f"skip {path}: dimensione {frame.get_size()}")
+                print(f"skip {path}: size {frame.get_size()}")
                 continue
             found = find_in_sheet(sheet_px, sheet.get_size(), normalized_bytes(frame))
             if found is None:
-                print(f"NON TROVATO {path}: lasciato invariato")
+                print(f"NOT FOUND {path}: left unchanged")
                 continue
             fx, fy = found
             cx, cy = (fx // CELL) * CELL, (fy // CELL) * CELL
@@ -77,7 +77,7 @@ def main():
                 cut.top == 0 or cut.left == 0
                 or cut.right == FRAME or cut.bottom == FRAME
             )
-            marker = "  <- era mozzato" if tight.get_size() != cut.size and was_cut else ""
+            marker = "  <- was clipped" if tight.get_size() != cut.size and was_cut else ""
             print(f"{path}: {tight.get_width()}x{tight.get_height()}{marker}")
 
     pygame.quit()

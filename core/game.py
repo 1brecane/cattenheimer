@@ -39,8 +39,8 @@ class Game:
         visible_layers = list(self.tmx_data.visible_layers)
         self.terrain_layer_index = visible_layers.index(terrain_layer)
 
-        # geometria per-tile dai pixel visibili: i mezzi blocchi non
-        # collidono come tile interi e i pendii hanno un profilo di altezze
+        # per-tile geometry from visible pixels: half blocks do not collide
+        # as full tiles and slopes get a height profile
         self.terrain_hitboxes, self.terrain_heightmaps, self.terrain_hitboxes_full = \
             build_terrain_geometry(self.tmx_data, self.terrain_layer_index)
 
@@ -56,25 +56,25 @@ class Game:
         self.exit_button.rect.center = (SCREEN_WIDTH // 2 + 100, SCREEN_HEIGHT // 2 + 30)
         self.reload_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
 
-        # impostazioni (con eventuali valori salvati dall'ultima sessione)
+        # settings (restoring any values saved in a previous session)
         self.music_volume = 0.3
         self.sfx_volume = 0.5
-        self.difficulty = "NORMALE"
+        self.difficulty = "NORMAL"
         self.menu_state = "main"
         self.load_user_settings()
         self.apply_audio_settings()
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
         menu_font = self.fonts["menu"]
-        self.settings_button = TextButton((cx, cy + 120), "IMPOSTAZIONI", menu_font)
+        self.settings_button = TextButton((cx, cy + 120), "SETTINGS", menu_font)
         self.music_minus = TextButton((cx - 170, cy - 50), "-", menu_font)
         self.music_plus = TextButton((cx + 170, cy - 50), "+", menu_font)
         self.sfx_minus = TextButton((cx - 170, cy + 10), "-", menu_font)
         self.sfx_plus = TextButton((cx + 170, cy + 10), "+", menu_font)
-        self.difficulty_button = TextButton((cx, cy + 80), f"DIFFICOLTA': {self.difficulty}", menu_font)
-        self.back_button = TextButton((cx, cy + 150), "INDIETRO", menu_font)
+        self.difficulty_button = TextButton((cx, cy + 80), f"DIFFICULTY: {self.difficulty}", menu_font)
+        self.back_button = TextButton((cx, cy + 150), "BACK", menu_font)
 
-        # icone HUD ingrandite (le originali sono 13-16 px)
+        # enlarged HUD icons (originals are 13-16 px)
         self.hud_icons = {
             key: pygame.transform.scale2x(self.images[cfg["image"]])
             for key, cfg in GRENADE_TYPES.items()
@@ -105,8 +105,8 @@ class Game:
     # ------------------------------------------------------------------
 
     def setup_level(self):
-        """Costruisce il livello dagli oggetti definiti nella mappa Tiled
-        (layer "entities"): spawn del player, nemici, item e cartelli."""
+        """Builds the level from the objects defined in the Tiled map
+        (the "entities" layer): player spawn, enemies, items and signs."""
         diff = DIFFICULTIES[self.difficulty]
         map_scale = 2
 
@@ -179,7 +179,7 @@ class Game:
                     self.selected_grenade = "impact"
                 if event.key == pygame.K_ESCAPE:
                     if self.start_game:
-                        # pausa: torna al menu principale
+                        # pause: back to the main menu
                         self.start_game = False
                         self.menu_state = "main"
                         self.moving_left = False
@@ -205,7 +205,7 @@ class Game:
                         self.throw_grenade()
                     self.aiming = False
 
-            # rotella del mouse: scorre i tipi di granata
+            # mouse wheel: cycles grenade types
             if event.type == pygame.MOUSEWHEEL and self.start_game:
                 idx = GRENADE_ORDER.index(self.selected_grenade)
                 self.selected_grenade = GRENADE_ORDER[(idx - event.y) % len(GRENADE_ORDER)]
@@ -221,7 +221,7 @@ class Game:
         )
 
     def aim_speed(self, cfg):
-        """Velocità di lancio: cresce col tempo di mira (70% -> 130%)."""
+        """Throw speed: grows with aim time (70% -> 130%)."""
         return cfg["speed"] * (0.7 + 0.6 * self.aim_charge)
 
     def throw_grenade(self):
@@ -241,7 +241,7 @@ class Game:
         self.throw_timer = 8
 
     def draw_aim_arc(self):
-        """Anteprima della traiettoria: simula la fisica della granata."""
+        """Trajectory preview: simulates the grenade physics."""
         cfg = GRENADE_TYPES[self.selected_grenade]
         x, y = self.grenade_spawn_point()
         vx = self.player.direction * self.aim_speed(cfg)
@@ -269,8 +269,8 @@ class Game:
         moving = self.moving_left or self.moving_right
 
         if player.in_air:
-            # in aria il frame segue la velocità verticale:
-            # slancio in salita, planata all'apice, caduta in discesa
+            # airborne frames follow vertical velocity:
+            # launch while rising, glide at the apex, fall on the way down
             player.update_action(2)
             vel = player.vel_y
             if vel < -6:
@@ -289,7 +289,7 @@ class Game:
             return
 
         if player.landing_timer > 0 and not moving:
-            # atterraggio: accucciata (6) e rialzata (7-9)
+            # landing: crouch (6) and recover (7-9)
             player.update_action(2)
             player.landing_timer -= 1
             player.manual_frame = 6 + min((12 - player.landing_timer) // 3, 3)
@@ -381,14 +381,14 @@ class Game:
 
     def draw_settings_menu(self):
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-        draw_text("IMPOSTAZIONI", self.fonts["big"], WHITE, cx, cy - 160, self.window, center=True)
+        draw_text("SETTINGS", self.fonts["big"], WHITE, cx, cy - 160, self.window, center=True)
 
         draw_text(
-            f"MUSICA: {round(self.music_volume * 100)}%",
+            f"MUSIC: {round(self.music_volume * 100)}%",
             self.fonts["menu"], WHITE, cx, cy - 50, self.window, center=True,
         )
         draw_text(
-            f"EFFETTI: {round(self.sfx_volume * 100)}%",
+            f"SFX: {round(self.sfx_volume * 100)}%",
             self.fonts["menu"], WHITE, cx, cy + 10, self.window, center=True,
         )
 
@@ -412,8 +412,8 @@ class Game:
         if self.difficulty_button.draw(self.window):
             idx = DIFFICULTY_ORDER.index(self.difficulty)
             self.difficulty = DIFFICULTY_ORDER[(idx + 1) % len(DIFFICULTY_ORDER)]
-            self.difficulty_button.set_text(f"DIFFICOLTA': {self.difficulty}")
-            self.restart_level()  # la nuova difficoltà riavvia il livello
+            self.difficulty_button.set_text(f"DIFFICULTY: {self.difficulty}")
+            self.restart_level()  # a new difficulty restarts the level
             self.sounds["action"].play()
 
         if self.back_button.draw(self.window):
@@ -456,13 +456,13 @@ class Game:
 
     def draw_sprites(self):
         for entity in self.all_sprites:
-            # lampeggio durante i frame di invulnerabilità
+            # blink during invulnerability frames
             if getattr(entity, "hurt_cooldown", 0) > 0 and (entity.hurt_cooldown // 4) % 2:
                 continue
             image = entity.image
             if hasattr(entity, "flip"):
                 image = pygame.transform.flip(image, entity.flip, False)
-            # ancora al centro-basso: i frame hanno dimensioni diverse tra loro
+            # anchor at midbottom: frames have varying sizes
             draw_rect = image.get_rect(midbottom=entity.rect.midbottom)
             self.window.blit(image, draw_rect.move(self.camera.camera.topleft))
 
@@ -504,7 +504,7 @@ class Game:
 
                     if not any(enemy.alive for enemy in self.enemy_group):
                         draw_text(
-                            "VITTORIA", self.fonts["big"], WHITE,
+                            "VICTORY", self.fonts["big"], WHITE,
                             SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
                         )
                         if self.reload_button.draw(self.window):

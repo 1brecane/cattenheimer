@@ -12,10 +12,10 @@ class Button():
     def draw(self, surface):
         action = False
 
-        # prendi la posizione del mouse
+        # get the mouse position
         pos = pygame.mouse.get_pos()
 
-        # controlla se il mouse è sopra il bottone e le condizioni del click
+        # check hover and click conditions
 
         if self.rect.collidepoint(pos):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
@@ -25,13 +25,13 @@ class Button():
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
 
-        # disegna il bottone
+        # draw the button
         surface.blit(self.image, (self.rect.x, self.rect.y))
 
         return action
 
 class TextButton:
-    """Bottone testuale con pannello semi-trasparente ed evidenziazione al passaggio del mouse."""
+    """Text button with a translucent panel and hover highlight."""
 
     PAD_X = 16
     PAD_Y = 10
@@ -39,12 +39,12 @@ class TextButton:
     def __init__(self, center, text, font):
         self.font = font
         self.center = center
-        # True ignora un click già in corso quando il bottone compare
+        # True ignores a click already in progress when the button appears
         self.was_pressed = True
         self.set_text(text)
 
     def arm(self):
-        """Ignora il click eventualmente in corso (da chiamare al cambio schermata)."""
+        """Ignore any click in progress (call on screen transitions)."""
         self.was_pressed = True
 
     def set_text(self, text):

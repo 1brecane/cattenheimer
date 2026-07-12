@@ -2,14 +2,14 @@ import pygame
 
 
 def build_terrain_geometry(tmx_data, terrain_layer_index, scale=2):
-    """Geometria di collisione per ogni gid del layer terreno.
+    """Collision geometry for every gid of the terrain layer.
 
-    Ritorna (solid_hitboxes, slope_heightmaps, full_hitboxes):
-    - solid_hitboxes: gid -> Rect dei pixel visibili (tile con superficie
-      piatta, inclusi i mezzi blocchi)
-    - slope_heightmaps: gid -> altezza della superficie per ogni colonna
-      di pixel (tile obliqui: i personaggi seguono il profilo)
-    - full_hitboxes: tutti i gid come Rect (per le granate)
+    Returns (solid_hitboxes, slope_heightmaps, full_hitboxes):
+    - solid_hitboxes: gid -> Rect of the visible pixels (flat-surface
+      tiles, including half blocks)
+    - slope_heightmaps: gid -> surface height for every pixel column
+      (slanted tiles: characters follow the profile)
+    - full_hitboxes: every gid as a Rect (for grenades)
     """
     solid = {}
     slopes = {}
@@ -30,7 +30,7 @@ def build_terrain_geometry(tmx_data, terrain_layer_index, scale=2):
         )
         full[gid] = rect
 
-        # profilo superiore: primo pixel opaco di ogni colonna
+        # top profile: first opaque pixel of each column
         w, h = img.get_size()
         tops = []
         for x in range(w):
@@ -53,7 +53,7 @@ def build_terrain_geometry(tmx_data, terrain_layer_index, scale=2):
 
 
 def slope_surface_y(rect, tmx_data, terrain_layer_index, heightmaps, probe=8):
-    """Y della superficie di un pendio sotto il centro del rect, o None."""
+    """Y of a slope surface under the rect center, or None."""
     if not heightmaps:
         return None
     tile_w2 = tmx_data.tilewidth * 2
@@ -79,7 +79,7 @@ def check_terrain_collision(rect, tmx_data, terrain_layer_index, hitboxes):
     tile_w2 = tmx_data.tilewidth * 2
     tile_h2 = tmx_data.tileheight * 2
 
-    # pytmx lancia ValueError fuori dai limiti della mappa
+    # pytmx raises ValueError outside the map bounds
     left = max(rect.left // tile_w2, 0)
     right = min(rect.right // tile_w2, tmx_data.width - 1)
     top = max(rect.top // tile_h2, 0)

@@ -30,7 +30,7 @@ class ItemBox(pygame.sprite.Sprite):
             key = GRENADE_ITEMS[self.item_type]
             cfg = GRENADE_TYPES[key]
             setattr(player, cfg["ammo_attr"], getattr(player, cfg["ammo_attr"]) + cfg["pickup_amount"])
-            # se il tipo selezionato è scarico, passa a quello appena raccolto
+            # if the selected type is empty, switch to the one just picked up
             selected = GRENADE_TYPES[self.game.selected_grenade]
             if getattr(player, selected["ammo_attr"]) == 0:
                 self.game.selected_grenade = key

@@ -28,7 +28,7 @@ def load_map(filename):
 
 
 def build_map_surface(tmx_data, scale):
-    """Pre-renderizza tutti i layer visibili della mappa su un'unica surface."""
+    """Pre-renders every visible map layer onto a single surface."""
     width = tmx_data.width * tmx_data.tilewidth * scale
     height = tmx_data.height * tmx_data.tileheight * scale
     map_surface = pygame.Surface((width, height), pygame.SRCALPHA)

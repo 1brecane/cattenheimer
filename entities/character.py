@@ -38,13 +38,13 @@ class Character(pygame.sprite.Sprite):
         self.hurt_cooldown = 0
         self.contact_damage = 10
         self.knockback = 0.0
-        # i nemici non salgono i gradini automaticamente: restano nella loro zona
+        # enemies do not auto-climb steps: they stay in their zone
         self.steps_up = True
-        # se impostato, il frame è scelto dalla fisica (salto/caduta)
-        # invece che dal timer dell'animazione
+        # when set, the frame is chosen by physics (jump/fall)
+        # instead of the animation timer
         self.manual_frame = None
         self.landing_timer = 0
-        # stato AI (solo nemici)
+        # AI state (enemies only)
         self.chase_mult = 1.2
         self.speed_mult = 1.0
         self.idle_timer = 0
@@ -80,13 +80,13 @@ class Character(pygame.sprite.Sprite):
             self.hurt_cooldown -= 1
 
     def hit(self, damage, source_x=None):
-        """Applica danno con frame di invulnerabilità, knockback e suono."""
+        """Applies damage with invulnerability frames, knockback and sound."""
         if self.hurt_cooldown > 0 or not self.alive:
             return
         self.health -= damage
         self.hurt_cooldown = 45
         if source_x is not None:
-            # spinta via dalla sorgente del danno, con piccolo balzo
+            # push away from the damage source, with a small pop-up
             self.knockback = 6.0 if self.rect.centerx >= source_x else -6.0
             self.vel_y = -4
             self.in_air = True
@@ -116,13 +116,13 @@ class Character(pygame.sprite.Sprite):
             self.flip = False
             self.direction = 1
 
-        # spinta da knockback, si smorza da sola
+        # knockback push, decays on its own
         if abs(self.knockback) > 0.5:
             dx += self.knockback
         self.knockback *= 0.85
 
-        # stamina: si consuma correndo e saltando, si rigenera altrimenti;
-        # a zero lo sprint resta bloccato finché non si ricarica un po'
+        # stamina: drained by sprinting and jumping, regenerates otherwise;
+        # at zero, sprinting stays locked until it recharges a bit
         if sprint_active:
             self.stamina -= 0.4
             if self.stamina <= 0:
@@ -140,7 +140,7 @@ class Character(pygame.sprite.Sprite):
                 self.stamina -= JUMP_COST
                 self.vel_y = -10
             else:
-                # senza stamina il salto riesce comunque, ma più debole
+                # with no stamina the jump still comes out, just weaker
                 self.stamina = 0
                 self.vel_y = -7
             self.jump = False
@@ -175,7 +175,7 @@ class Character(pygame.sprite.Sprite):
                 elif dx < 0:
                     self.rect.left = collision_rect.right
 
-        # pendii: i piedi seguono il profilo del terreno
+        # slopes: feet follow the terrain profile
         if self.vel_y >= 0:
             surf = self.slope_surface()
             if surf is not None:
@@ -186,8 +186,8 @@ class Character(pygame.sprite.Sprite):
                     self.vel_y = 0
                     landed = True
 
-        # stato a terra: in salita si è sempre in aria, altrimenti sonda
-        # 2px sotto i piedi (così camminare giù da un bordo attiva la caduta)
+        # grounded state: always airborne while rising, otherwise probe
+        # 2px under the feet (so walking off a ledge triggers the fall)
         if self.vel_y < 0:
             self.in_air = True
         elif landed:
@@ -195,7 +195,7 @@ class Character(pygame.sprite.Sprite):
         else:
             self.in_air = not self.is_on_ground()
 
-        # limiti orizzontali della mappa e morte per caduta nel vuoto
+        # horizontal map bounds and death when falling into the void
         self.rect.left = max(self.rect.left, 0)
         self.rect.right = min(self.rect.right, self.game.map_width)
         if self.rect.top > self.game.map_height:
@@ -216,7 +216,7 @@ class Character(pygame.sprite.Sprite):
         return surf is not None and abs(surf - self.rect.bottom) <= 2
 
     def try_step_up(self, collision_rect):
-        """Sale automaticamente gradini alti al massimo un tile, se c'è spazio sopra."""
+        """Automatically climbs steps at most one tile high, if there is headroom."""
         step_height = self.rect.bottom - collision_rect.top
         if not 0 < step_height <= self.tmx_data.tileheight * 2:
             return False
@@ -228,7 +228,7 @@ class Character(pygame.sprite.Sprite):
         return True
 
     def cliff_ahead(self, direction):
-        """True se un passo in quella direzione porta nel vuoto."""
+        """True if one step in that direction leads into the void."""
         if self.in_air:
             return False
         front_x = self.rect.right + 6 if direction > 0 else self.rect.left - 6
@@ -248,18 +248,18 @@ class Character(pygame.sprite.Sprite):
         if not (self.alive and player.alive):
             return
 
-        # attacco a contatto
+        # contact attack
         if self.rect.colliderect(player.rect):
             player.hit(self.contact_damage, self.rect.centerx)
             self.update_action(3)
             self.idle_timer = 45
             return
 
-        # il campo visivo segue sempre la direzione dello sguardo
+        # the vision cone always follows the facing direction
         self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
 
         if self.vision.colliderect(player.rect):
-            # inseguimento (i boss sono più rapidi), senza buttarsi nel vuoto
+            # chase (bosses are faster), without diving off ledges
             self.idle_timer = 0
             self.speed_mult = self.chase_mult
             toward_right = self.rect.centerx < player.rect.centerx
@@ -270,7 +270,7 @@ class Character(pygame.sprite.Sprite):
                 self.update_action(1)
             return
 
-        # pattugliamento
+        # patrol
         self.speed_mult = 1.0
         if self.idle_timer > 0:
             self.idle_timer -= 1
@@ -289,7 +289,7 @@ class Character(pygame.sprite.Sprite):
         self.update_action(1)
         self.patrol_dist += abs(self.rect.x - old_x)
         if self.rect.x == old_x or self.patrol_dist > 160:
-            # muro davanti o fine del giro di ronda: torna indietro
+            # wall ahead or end of the patrol range: turn around
             self.direction *= -1
             self.patrol_dist = 0
 

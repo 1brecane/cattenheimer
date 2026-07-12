@@ -1,47 +1,47 @@
 # Cattenheimer
 
-Platformer 2D in pixel art dove un gatto esploratore affronta nemici a colpi
-di granate. Scritto in Python con [pygame-ce](https://pyga.me/) e mappe
-realizzate in [Tiled](https://www.mapeditor.org/).
+A 2D pixel-art platformer where an explorer cat fights enemies with
+grenades. Written in Python with [pygame-ce](https://pyga.me/), with maps
+made in [Tiled](https://www.mapeditor.org/).
 
-## Avvio
+## Getting started
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
 
-## Comandi
+## Controls
 
-| Tasto | Azione |
+| Key | Action |
 |---|---|
-| `A` / `D` | Muoviti a sinistra / destra |
-| `Spazio` | Salta (consuma stamina) |
-| `Shift` | Corri (consuma stamina) |
-| `F` (tieni premuto) | Mira la granata: più a lungo miri, più lontano arriva. Rilascia per lanciare |
-| `1` / `2` / `3` o rotella | Cambia tipo di granata |
-| `Esc` | Pausa / torna al menu |
+| `A` / `D` | Move left / right |
+| `Space` | Jump (costs stamina) |
+| `Shift` | Sprint (drains stamina) |
+| `F` (hold) | Aim the grenade: the longer you aim, the farther it flies. Release to throw |
+| `1` / `2` / `3` or mouse wheel | Switch grenade type |
+| `Esc` | Pause / back to menu |
 
-Dal menu principale si accede alle **impostazioni**: volume di musica ed
-effetti e difficoltà dei nemici (salvate in `settings.json`).
+The main menu has a **settings** screen: music and SFX volume and enemy
+difficulty (persisted to `settings.json`).
 
-## Struttura del progetto
+## Project layout
 
 ```
-main.py        avvio del gioco
-core/          loop di gioco, impostazioni, caricamento asset
-world/         camera, rendering mappa, collisioni (hitbox per-pixel e pendii)
-entities/      personaggi (player/nemici), granate, item, cartelli
-ui/            bottoni del menu
-Assets/        sprite, suoni, musica, font
-Data/tmx/      mappe Tiled: gli spawn di player, nemici, item e cartelli
-               sono oggetti nel layer "entities" della mappa
-tools/         script di utilità (ri-estrazione frame dallo spritesheet)
+main.py        game entry point
+core/          game loop, settings, asset loading
+world/         camera, map rendering, collisions (per-pixel hitboxes and slopes)
+entities/      characters (player/enemies), grenades, items, signs
+ui/            menu buttons
+Assets/        sprites, sounds, music, fonts
+Data/tmx/      Tiled maps: player spawn, enemies, items and signs are
+               objects in the map's "entities" layer
+tools/         utility scripts (frame re-extraction from the sprite sheet)
 ```
 
-## Modificare il livello
+## Editing the level
 
-Apri `Data/tmx/tutorial.tmx` in Tiled: il layer oggetti `entities` contiene
-spawn del player, nemici (con proprietà `char_type`, `health`, `chase_mult`),
-item (`item_type`) e cartelli (`text`). Il gioco li legge al caricamento,
-senza coordinate nel codice.
+Open `Data/tmx/tutorial.tmx` in Tiled: the `entities` object layer holds
+the player spawn, enemies (with `char_type`, `health`, `chase_mult`
+properties), items (`item_type`) and signs (`text`). The game reads them
+at load time — no coordinates in the code.

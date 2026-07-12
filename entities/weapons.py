@@ -12,19 +12,19 @@ GRENADE_TYPES = {
         "image": "classic_grenade", "expl_type": "d", "speed": 5,
         "bounce": True, "impact": False, "damage": 50, "timer": 150,
         "ammo_attr": "classic_grenades", "pickup_amount": 5,
-        "label": "GRANATE CLASSICHE",
+        "label": "CLASSIC GRENADES",
     },
     "atom": {
         "image": "atom_grenade", "expl_type": "c", "speed": 4,
         "bounce": True, "impact": False, "damage": 100, "timer": 150,
         "ammo_attr": "atom_grenades", "pickup_amount": 2,
-        "label": "GRANATE AD ATOMI",
+        "label": "ATOM GRENADES",
     },
     "impact": {
         "image": "impact_grenade", "expl_type": "a", "speed": 7,
         "bounce": False, "impact": True, "damage": 25, "timer": 150,
         "ammo_attr": "impact_grenades", "pickup_amount": 10,
-        "label": "GRANATE AD IMPATTO",
+        "label": "IMPACT GRENADES",
     },
 }
 
@@ -49,7 +49,7 @@ class Grenade(pygame.sprite.Sprite):
         self.exploded = False
 
     def check_collision(self):
-        # per le granate anche i pendii valgono come rettangoli pieni
+        # grenades treat slope tiles as solid rectangles too
         return check_terrain_collision(
             self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes_full
         )

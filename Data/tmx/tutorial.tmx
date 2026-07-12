@@ -316,17 +316,17 @@
   </object>
   <object id="21" name="sign" x="252.5" y="440">
    <properties>
-    <property name="text" value="Benvenuto!, premi 'a' per andare a sinistra, 'd' per andare a destra e 'space bar' per saltare, tieni premuto 'shift' mentre cammini per correre, (la corsa e i salti consumano la barra gialla!), procedi verso destra ed entra nella grotta!"/>
+    <property name="text" value="Welcome!, press 'a' to move left, 'd' to move right and 'space' to jump, hold 'shift' while walking to run, (running and jumping drain the yellow bar!), head right and enter the cave!"/>
    </properties>
   </object>
   <object id="22" name="sign" x="1000" y="525">
    <properties>
-    <property name="text" value="Fai attenzione al nemico!, se ti avvicini ti farà danno, prendi le GRANATE AD IMPATTO qui sotto, tieni premuto 'f' per mirare, e rilascia per lanciare: più a lungo miri più lontano arriva!"/>
+    <property name="text" value="Watch out for the enemy!, it hurts you on contact, grab the IMPACT GRENADES down here, hold 'f' to aim, release to throw: the longer you aim the farther it goes!"/>
    </properties>
   </object>
   <object id="23" name="sign" x="1040" y="225">
    <properties>
-    <property name="text" value="Molto bene!, esplora la mappa e cerca altre granate se vuoi, (cambia tipo con '1' '2' '3' o con la rotella del mouse), quando sei pronto affronta il boss salendo nell'isola!"/>
+    <property name="text" value="Well done!, explore the map and look for more grenades if you like, (switch type with '1' '2' '3' or the mouse wheel), when you are ready face the boss up on the island!"/>
    </properties>
   </object>
  </objectgroup>
