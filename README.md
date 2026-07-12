@@ -20,10 +20,11 @@ python main.py
 | `Shift` | Sprint (drains stamina) |
 | `F` (hold) | Aim the grenade: the longer you aim, the farther it flies. Release to throw |
 | `1` / `2` / `3` or mouse wheel | Switch grenade type |
+| `F11` | Toggle fullscreen |
 | `Esc` | Pause / back to menu |
 
-The main menu has a **settings** screen: music and SFX volume and enemy
-difficulty (persisted to `settings.json`).
+The main menu has a **settings** screen: music and SFX volume, fullscreen
+and enemy difficulty (persisted to `settings.json`).
 
 ## Project layout
 

@@ -21,7 +21,21 @@ from entities.sign import Sign
 class Game:
     def __init__(self):
         pygame.init()
-        self.window = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        # settings (restoring any values saved in a previous session);
+        # loaded before the window so fullscreen applies at startup
+        self.music_volume = 0.3
+        self.sfx_volume = 0.5
+        self.difficulty = "NORMAL"
+        self.fullscreen = False
+        self.menu_state = "main"
+        self.load_user_settings()
+
+        # SCALED keeps the logical 1280x720 resolution (and mouse coords)
+        # and scales it to the display
+        flags = pygame.SCALED | (pygame.FULLSCREEN if self.fullscreen else 0)
+        self.window = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags)
+        pygame.display.set_caption("Cattenheimer")
         self.window.fill(WHITE)
         pygame.display.flip()
         self.clock = pygame.time.Clock()
@@ -29,6 +43,7 @@ class Game:
         self.sounds = load_sounds()
         self.images = load_images()
         self.fonts = load_fonts()
+        self.apply_audio_settings()
 
         self.tmx_data = load_map("Data/tmx/tutorial.tmx")
         self.map_width = self.tmx_data.width * self.tmx_data.tilewidth * 2
@@ -56,23 +71,18 @@ class Game:
         self.exit_button.rect.center = (SCREEN_WIDTH // 2 + 100, SCREEN_HEIGHT // 2 + 30)
         self.reload_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
 
-        # settings (restoring any values saved in a previous session)
-        self.music_volume = 0.3
-        self.sfx_volume = 0.5
-        self.difficulty = "NORMAL"
-        self.menu_state = "main"
-        self.load_user_settings()
-        self.apply_audio_settings()
-
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
         menu_font = self.fonts["menu"]
         self.settings_button = TextButton((cx, cy + 120), "SETTINGS", menu_font)
-        self.music_minus = TextButton((cx - 170, cy - 50), "-", menu_font)
-        self.music_plus = TextButton((cx + 170, cy - 50), "+", menu_font)
-        self.sfx_minus = TextButton((cx - 170, cy + 10), "-", menu_font)
-        self.sfx_plus = TextButton((cx + 170, cy + 10), "+", menu_font)
-        self.difficulty_button = TextButton((cx, cy + 80), f"DIFFICULTY: {self.difficulty}", menu_font)
-        self.back_button = TextButton((cx, cy + 150), "BACK", menu_font)
+        self.music_minus = TextButton((cx - 170, cy - 70), "-", menu_font)
+        self.music_plus = TextButton((cx + 170, cy - 70), "+", menu_font)
+        self.sfx_minus = TextButton((cx - 170, cy - 15), "-", menu_font)
+        self.sfx_plus = TextButton((cx + 170, cy - 15), "+", menu_font)
+        self.fullscreen_button = TextButton(
+            (cx, cy + 40), f"FULLSCREEN: {'ON' if self.fullscreen else 'OFF'}", menu_font
+        )
+        self.difficulty_button = TextButton((cx, cy + 95), f"DIFFICULTY: {self.difficulty}", menu_font)
+        self.back_button = TextButton((cx, cy + 160), "BACK", menu_font)
 
         # enlarged HUD icons (originals are 13-16 px)
         self.hud_icons = {
@@ -177,6 +187,8 @@ class Game:
                     self.selected_grenade = "atom"
                 if event.key == pygame.K_3:
                     self.selected_grenade = "impact"
+                if event.key == pygame.K_F11:
+                    self.toggle_fullscreen()
                 if event.key == pygame.K_ESCAPE:
                     if self.start_game:
                         # pause: back to the main menu
@@ -339,6 +351,7 @@ class Game:
             return
         self.music_volume = min(max(float(data.get("music_volume", self.music_volume)), 0.0), 1.0)
         self.sfx_volume = min(max(float(data.get("sfx_volume", self.sfx_volume)), 0.0), 1.0)
+        self.fullscreen = bool(data.get("fullscreen", self.fullscreen))
         if data.get("difficulty") in DIFFICULTIES:
             self.difficulty = data["difficulty"]
 
@@ -348,6 +361,7 @@ class Game:
                 json.dump({
                     "music_volume": self.music_volume,
                     "sfx_volume": self.sfx_volume,
+                    "fullscreen": self.fullscreen,
                     "difficulty": self.difficulty,
                 }, f, indent=2)
         except OSError:
@@ -358,9 +372,17 @@ class Game:
         for sound in self.sounds.values():
             sound.set_volume(self.sfx_volume)
 
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        flags = pygame.SCALED | (pygame.FULLSCREEN if self.fullscreen else 0)
+        self.window = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags)
+        self.fullscreen_button.set_text(f"FULLSCREEN: {'ON' if self.fullscreen else 'OFF'}")
+        self.save_user_settings()
+
     def _arm_menu_buttons(self):
         for b in (self.settings_button, self.music_minus, self.music_plus,
-                  self.sfx_minus, self.sfx_plus, self.difficulty_button, self.back_button):
+                  self.sfx_minus, self.sfx_plus, self.fullscreen_button,
+                  self.difficulty_button, self.back_button):
             b.arm()
 
     def draw_main_menu(self):
@@ -385,11 +407,11 @@ class Game:
 
         draw_text(
             f"MUSIC: {round(self.music_volume * 100)}%",
-            self.fonts["menu"], WHITE, cx, cy - 50, self.window, center=True,
+            self.fonts["menu"], WHITE, cx, cy - 70, self.window, center=True,
         )
         draw_text(
             f"SFX: {round(self.sfx_volume * 100)}%",
-            self.fonts["menu"], WHITE, cx, cy + 10, self.window, center=True,
+            self.fonts["menu"], WHITE, cx, cy - 15, self.window, center=True,
         )
 
         if self.music_minus.draw(self.window):
@@ -408,6 +430,10 @@ class Game:
             self.sfx_volume = min(round(self.sfx_volume + 0.1, 1), 1.0)
             self.apply_audio_settings()
             self.sounds["action"].play()
+
+        if self.fullscreen_button.draw(self.window):
+            self.sounds["action"].play()
+            self.toggle_fullscreen()
 
         if self.difficulty_button.draw(self.window):
             idx = DIFFICULTY_ORDER.index(self.difficulty)
