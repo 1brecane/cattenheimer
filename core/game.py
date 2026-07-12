@@ -177,8 +177,6 @@ class Game:
                     self.sprinting = True
                 if event.key == pygame.K_SPACE:
                     self.player.jump = True
-                    if not self.player.in_air:
-                        self.player.jump_count += 1
                 if event.key == pygame.K_f:
                     self.grenade = True
                     self.player.action_done = True
@@ -287,9 +285,6 @@ class Game:
         elif moving:
             self.player.update_action(1)
             self.player.still_cooldown = 400
-            self.player.jump_count -= 0.1
-            if self.player.jump_count <= 0:
-                self.player.jump_count = 0
         elif self.grenade:
             self.player.update_action(3)
             self.player.still_cooldown = 400
@@ -297,8 +292,6 @@ class Game:
             self.player.still_cooldown -= 1
             if self.player.still_cooldown >= 0:
                 self.player.update_action(0)
-                if self.player.still_cooldown == 380:
-                    self.player.jump_count = 0
             else:
                 self.player.update_action(6)
                 self.player.health += 0.01

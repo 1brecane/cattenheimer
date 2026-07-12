@@ -37,7 +37,6 @@ class Character(pygame.sprite.Sprite):
         self.action = 0
         self.update_time = pygame.time.get_ticks()
         self.still_cooldown = 400
-        self.jump_count = 0
         self.move_count = 0
         self.vision = pygame.Rect(0, 0, 200, 20)
         self.hurt_cooldown = 0
@@ -111,24 +110,28 @@ class Character(pygame.sprite.Sprite):
             self.flip = False
             self.direction = 1
 
-        # stamina: si consuma correndo, si rigenera altrimenti;
-        # a zero si è sfiniti finché non si ricarica un po'
+        # stamina: si consuma correndo e saltando, si rigenera altrimenti;
+        # a zero lo sprint resta bloccato finché non si ricarica un po'
         if sprint_active:
-            self.stamina -= 0.6
+            self.stamina -= 0.4
             if self.stamina <= 0:
                 self.stamina = 0
                 self.exhausted = True
         else:
-            self.stamina = min(self.stamina + 0.25, self.max_stamina)
-            if self.exhausted and self.stamina >= 25:
+            self.stamina = min(self.stamina + 0.4, self.max_stamina)
+            if self.exhausted and self.stamina >= 20:
                 self.exhausted = False
 
         if self.jump and not self.in_air:
             self.game.sounds["jump"].play()
-            if self.jump_count <= 3:
+            JUMP_COST = 12
+            if self.stamina >= JUMP_COST:
+                self.stamina -= JUMP_COST
                 self.vel_y = -10
             else:
-                self.vel_y = -10 + self.jump_count * 0.9
+                # senza stamina il salto riesce comunque, ma più debole
+                self.stamina = 0
+                self.vel_y = -7
             self.jump = False
             self.in_air = True
 
