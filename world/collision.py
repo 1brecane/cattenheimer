@@ -6,10 +6,11 @@ def check_terrain_collision(rect, tmx_data, terrain_layer_index):
     tile_w2 = tmx_data.tilewidth * 2
     tile_h2 = tmx_data.tileheight * 2
 
-    left = rect.left // tile_w2
-    right = rect.right // tile_w2
-    top = rect.top // tile_h2
-    bottom = rect.bottom // tile_h2
+    # pytmx lancia ValueError fuori dai limiti della mappa
+    left = max(rect.left // tile_w2, 0)
+    right = min(rect.right // tile_w2, tmx_data.width - 1)
+    top = max(rect.top // tile_h2, 0)
+    bottom = min(rect.bottom // tile_h2, tmx_data.height - 1)
 
     for x in range(left, right + 1):
         for y in range(top, bottom + 1):

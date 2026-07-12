@@ -37,6 +37,7 @@ class Character(pygame.sprite.Sprite):
         self.jump_count = 0
         self.move_count = 0
         self.vision = pygame.Rect(0, 0, 200, 20)
+        self.hurt_cooldown = 0
         self.idling = False
         self.idling_count = 0
 
@@ -68,6 +69,16 @@ class Character(pygame.sprite.Sprite):
         self.check_alive()
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
+        if self.hurt_cooldown > 0:
+            self.hurt_cooldown -= 1
+
+    def hit(self, damage):
+        """Applica danno con frame di invulnerabilità e feedback sonoro."""
+        if self.hurt_cooldown > 0 or not self.alive:
+            return
+        self.health -= damage
+        self.hurt_cooldown = 45
+        self.game.sounds["hurt"].play()
 
     def check_collision(self):
         return check_terrain_collision(self.rect, self.tmx_data, self.game.terrain_layer_index)
@@ -120,22 +131,32 @@ class Character(pygame.sprite.Sprite):
         self.rect.x += dx
         collision_rect = self.check_collision()
         if collision_rect:
-            if dx > 0:
-                self.rect.right = collision_rect.left
-                if not self.in_air and self.can_step_up(collision_rect):
-                    self.rect.y -= TILE_SIZE
-            elif dx < 0:
-                self.rect.left = collision_rect.right
-                if not self.in_air and self.can_step_up(collision_rect):
-                    self.rect.y -= TILE_SIZE
+            stepped = False
+            if dx != 0 and not self.in_air:
+                stepped = self.try_step_up(collision_rect)
+            if not stepped:
+                if dx > 0:
+                    self.rect.right = collision_rect.left
+                elif dx < 0:
+                    self.rect.left = collision_rect.right
 
-    def can_step_up(self, collision_rect):
-        tile_w2 = self.tmx_data.tilewidth * 2
-        tile_h2 = self.tmx_data.tileheight * 2
-        x = collision_rect.left // tile_w2
-        y = (collision_rect.top // tile_h2) - 1
-        tile_above = self.tmx_data.get_tile_image(x, y, self.game.terrain_layer_index)
-        return tile_above is None
+        # limiti orizzontali della mappa e morte per caduta nel vuoto
+        self.rect.left = max(self.rect.left, 0)
+        self.rect.right = min(self.rect.right, self.game.map_width)
+        if self.rect.top > self.game.map_height:
+            self.health = 0
+
+    def try_step_up(self, collision_rect):
+        """Sale automaticamente gradini alti al massimo un tile, se c'è spazio sopra."""
+        step_height = self.rect.bottom - collision_rect.top
+        if not 0 < step_height <= self.tmx_data.tileheight * 2:
+            return False
+        old_y = self.rect.y
+        self.rect.bottom = collision_rect.top
+        if self.check_collision():
+            self.rect.y = old_y
+            return False
+        return True
 
     def ai(self, player):
         if self.alive and player.alive:
@@ -145,8 +166,7 @@ class Character(pygame.sprite.Sprite):
                 self.idling_count = 150
 
             if self.rect.colliderect(player.rect):
-                player.health -= 1
-                self.game.sounds["hurt"].play()
+                player.hit(10)
                 self.update_action(3)
                 self.idling = True
                 self.idling_count = 100

@@ -20,16 +20,22 @@ class Sign(pygame.sprite.Sprite):
     def draw_text_overlay(self):
         if not self.player_nearby:
             return
-        text_pos = self.game.camera.apply(self).topleft
+        font = self.game.fonts["small"]
         lines = self.text.split(", ")
-        x_offset = 50
-        y_offset = -100
+        line_height = 20
+        text_width = max(font.size(line)[0] for line in lines)
+
+        panel = pygame.Rect(0, 0, text_width + 20, len(lines) * line_height + 14)
+        sign_pos = self.game.camera.apply(self)
+        panel.midbottom = (sign_pos.centerx, sign_pos.top - 8)
+        panel.clamp_ip(self.game.window.get_rect())
+
+        overlay = pygame.Surface(panel.size, pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.game.window.blit(overlay, panel.topleft)
         for i, line in enumerate(lines):
             draw_text(
-                line,
-                self.game.fonts["small"],
-                WHITE,
-                text_pos[0] + x_offset,
-                text_pos[1] + y_offset + (i * 20),
+                line, font, WHITE,
+                panel.x + 10, panel.y + 8 + i * line_height,
                 self.game.window,
             )

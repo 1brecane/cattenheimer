@@ -4,9 +4,14 @@ import pytmx
 from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
-def draw_text(text, font, text_col, x, y, surface):
+def draw_text(text, font, text_col, x, y, surface, center=False):
     img = font.render(text, True, text_col)
-    surface.blit(img, (x, y))
+    rect = img.get_rect()
+    if center:
+        rect.center = (x, y)
+    else:
+        rect.topleft = (x, y)
+    surface.blit(img, rect)
 
 
 def draw_parallax_bg(camera, bg_layers, surface):

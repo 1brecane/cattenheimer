@@ -7,7 +7,7 @@ from world.camera import Camera
 from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
 from entities.items import ItemBox, HealthBar
-from entities.weapons import Grenade
+from entities.weapons import Grenade, GRENADE_TYPES, GRENADE_ORDER
 from entities.sign import Sign
 
 
@@ -24,8 +24,8 @@ class Game:
         self.fonts = load_fonts()
 
         self.tmx_data = load_map("Data/tmx/tutorial.tmx")
-        map_width = self.tmx_data.width * self.tmx_data.tilewidth * 2
-        map_height = self.tmx_data.height * self.tmx_data.tileheight * 2
+        self.map_width = self.tmx_data.width * self.tmx_data.tilewidth * 2
+        self.map_height = self.tmx_data.height * self.tmx_data.tileheight * 2
 
         # Pre-compute terrain layer index (avoids repeated lookup every frame)
         terrain_layer = self.tmx_data.get_layer_by_name("terrain")
@@ -35,11 +35,20 @@ class Game:
         # Pre-render the whole map once: drawing becomes a single blit per frame
         self.map_surface = build_map_surface(self.tmx_data, 2)
 
-        self.camera = Camera(map_width, map_height)
+        self.camera = Camera(self.map_width, self.map_height)
 
         self.start_button = button.Button(SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2, self.images["start"], 3)
         self.exit_button = button.Button(SCREEN_WIDTH // 2 + 130, SCREEN_HEIGHT // 2, self.images["exit"], 3)
         self.reload_button = button.Button(SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2, self.images["reload"], 3)
+        self.start_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
+        self.exit_button.rect.center = (SCREEN_WIDTH // 2 + 100, SCREEN_HEIGHT // 2 + 30)
+        self.reload_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
+
+        # icone HUD ingrandite (le originali sono 13-16 px)
+        self.hud_icons = {
+            key: pygame.transform.scale2x(self.images[cfg["image"]])
+            for key, cfg in GRENADE_TYPES.items()
+        }
 
         self.all_sprites = pygame.sprite.Group()
         self.enemy_group = pygame.sprite.Group()
@@ -52,9 +61,7 @@ class Game:
         self.moving_right = False
         self.grenade = False
         self.grenade_thrown = False
-        self.classic_grenade_trow = True
-        self.atom_grenade_trow = False
-        self.impact_grenade_trow = False
+        self.selected_grenade = "classic"
         self.sprinting = False
 
         self.start_game = False
@@ -135,40 +142,28 @@ class Game:
                 if event.key == pygame.K_d:
                     self.moving_right = True
                 if event.key == pygame.K_LSHIFT:
-                    if self.player.action == 0:
-                        self.sprinting = False
-                    else:
-                        self.sprinting = True
+                    self.sprinting = True
                 if event.key == pygame.K_SPACE:
-                    self.player.rect.y -= 1
                     self.player.jump = True
-                    if self.player.jump and not self.player.in_air:
+                    if not self.player.in_air:
                         self.player.jump_count += 1
                 if event.key == pygame.K_f:
                     self.grenade = True
                     self.player.action_done = True
                 if event.key == pygame.K_1:
-                    self.atom_grenade_trow = False
-                    self.impact_grenade_trow = False
-                    self.classic_grenade_trow = True
+                    self.selected_grenade = "classic"
                 if event.key == pygame.K_2:
-                    self.classic_grenade_trow = False
-                    self.impact_grenade_trow = False
-                    self.atom_grenade_trow = True
+                    self.selected_grenade = "atom"
                 if event.key == pygame.K_3:
-                    self.classic_grenade_trow = False
-                    self.impact_grenade_trow = True
-                    self.atom_grenade_trow = False
+                    self.selected_grenade = "impact"
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
                     self.moving_left = False
-                    self.sprinting = False
                 if event.key == pygame.K_d:
                     self.moving_right = False
-                    self.sprinting = False
                 if event.key == pygame.K_LSHIFT:
                     self.sprinting = False
                 if event.key == pygame.K_SPACE:
@@ -177,52 +172,34 @@ class Game:
                     self.grenade = False
                     self.grenade_thrown = False
                     self.player.action_done = False
-                if event.key == pygame.K_ESCAPE:
-                    self.running = False
+
+            # rotella del mouse: scorre i tipi di granata
+            if event.type == pygame.MOUSEWHEEL and self.start_game:
+                idx = GRENADE_ORDER.index(self.selected_grenade)
+                self.selected_grenade = GRENADE_ORDER[(idx - event.y) % len(GRENADE_ORDER)]
 
     # ------------------------------------------------------------------
     # Grenade logic
     # ------------------------------------------------------------------
 
     def handle_grenades(self):
-        if self.classic_grenade_trow:
-            if self.grenade and not self.grenade_thrown and self.player.classic_grenades > 0:
-                g = Grenade(
-                    self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
-                    self.player.rect.centery + (0.3 * self.player.rect.size[1]),
-                    self.player.direction, 150,
-                    self.images["classic_grenade"], "d", 5, True, False, 50, self,
-                )
-                self.grenade_group.add(g)
-                self.all_sprites.add(g)
-                self.player.classic_grenades -= 1
-                self.grenade_thrown = True
-
-        if self.atom_grenade_trow:
-            if self.grenade and not self.grenade_thrown and self.player.atom_grenades > 0:
-                g = Grenade(
-                    self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
-                    self.player.rect.centery + (0.3 * self.player.rect.size[1]),
-                    self.player.direction, 150,
-                    self.images["atom_grenade"], "c", 4, True, False, 100, self,
-                )
-                self.grenade_group.add(g)
-                self.all_sprites.add(g)
-                self.player.atom_grenades -= 1
-                self.grenade_thrown = True
-
-        if self.impact_grenade_trow:
-            if self.grenade and not self.grenade_thrown and self.player.impact_grenades > 0:
-                g = Grenade(
-                    self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
-                    self.player.rect.centery + (0.3 * self.player.rect.size[1]),
-                    self.player.direction, 150,
-                    self.images["impact_grenade"], "a", 7, False, True, 25, self,
-                )
-                self.grenade_group.add(g)
-                self.all_sprites.add(g)
-                self.player.impact_grenades -= 1
-                self.grenade_thrown = True
+        if not self.grenade or self.grenade_thrown:
+            return
+        cfg = GRENADE_TYPES[self.selected_grenade]
+        ammo = getattr(self.player, cfg["ammo_attr"])
+        if ammo <= 0:
+            return
+        g = Grenade(
+            self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
+            self.player.rect.centery + (0.3 * self.player.rect.size[1]),
+            self.player.direction, cfg["timer"],
+            self.images[cfg["image"]], cfg["expl_type"],
+            cfg["speed"], cfg["bounce"], cfg["impact"], cfg["damage"], self,
+        )
+        self.grenade_group.add(g)
+        self.all_sprites.add(g)
+        setattr(self.player, cfg["ammo_attr"], ammo - 1)
+        self.grenade_thrown = True
 
     # ------------------------------------------------------------------
     # Player animation state machine
@@ -232,7 +209,7 @@ class Game:
         if self.player.in_air:
             self.player.update_action(2)
             self.player.still_cooldown = 400
-        elif self.sprinting:
+        elif self.sprinting and (self.moving_left or self.moving_right):
             self.player.update_action(4)
             self.player.still_cooldown = 400
         elif self.moving_left or self.moving_right:
@@ -263,19 +240,35 @@ class Game:
     def draw_hud(self):
         self.health_bar.draw(self.player.health, self.window)
 
-        grenade_hud = [
-            (self.player.classic_grenades, "GRANATE CLASSICHE: ", "classic_grenade", 190, 35, 32),
-            (self.player.atom_grenades, "GRANATE AD ATOMI: ", "atom_grenade", 185, 55, 53),
-            (self.player.impact_grenades, "GRANATE AD IMPATTO: ", "impact_grenade", 195, 75, 73),
-        ]
-        for count, label, img_key, icon_x, text_y, icon_y in grenade_hud:
-            if count > 0:
-                draw_text(label, self.fonts["small"], WHITE, 10, text_y, self.window)
-                for i in range(count):
-                    self.window.blit(self.images[img_key], (icon_x + (i * 10), icon_y))
+        for i, key in enumerate(GRENADE_ORDER):
+            cfg = GRENADE_TYPES[key]
+            count = getattr(self.player, cfg["ammo_attr"])
+            slot = pygame.Rect(10 + i * 48, 35, 44, 44)
+            selected = key == self.selected_grenade
+
+            bg = pygame.Surface(slot.size, pygame.SRCALPHA)
+            bg.fill((0, 0, 0, 150 if selected else 80))
+            self.window.blit(bg, slot.topleft)
+            if selected:
+                pygame.draw.rect(self.window, WHITE, slot, 2)
+
+            icon = self.hud_icons[key]
+            if count == 0:
+                icon.set_alpha(70)
+            self.window.blit(icon, icon.get_rect(center=slot.center))
+            icon.set_alpha(255)
+
+            draw_text(str(i + 1), self.fonts["small"], WHITE, slot.x + 4, slot.y + 3, self.window)
+            draw_text(str(count), self.fonts["small"], WHITE, slot.right - 12, slot.bottom - 15, self.window)
+
+        cfg = GRENADE_TYPES[self.selected_grenade]
+        draw_text(cfg["label"], self.fonts["small"], WHITE, 10, 84, self.window)
 
     def draw_sprites(self):
         for entity in self.all_sprites:
+            # lampeggio durante i frame di invulnerabilità
+            if getattr(entity, "hurt_cooldown", 0) > 0 and (entity.hurt_cooldown // 4) % 2:
+                continue
             if hasattr(entity, "flip"):
                 self.window.blit(
                     pygame.transform.flip(entity.image, entity.flip, False),
@@ -296,7 +289,7 @@ class Game:
                 draw_parallax_bg(self.camera, self.images["bg_layers"], self.window)
                 draw_text(
                     "CATTENHEIMER", self.fonts["big"], WHITE,
-                    SCREEN_WIDTH // 2 - 170, SCREEN_HEIGHT // 2 - 100, self.window,
+                    SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
                 )
                 if self.start_button.draw(self.window):
                     self.sounds["action"].play()
@@ -327,7 +320,7 @@ class Game:
                     if not any(enemy.alive for enemy in self.enemy_group):
                         draw_text(
                             "VITTORIA", self.fonts["big"], WHITE,
-                            SCREEN_WIDTH // 2 - 135, SCREEN_HEIGHT // 2 - 100, self.window,
+                            SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
                         )
                         if self.reload_button.draw(self.window):
                             self.sounds["action"].play()
@@ -338,7 +331,7 @@ class Game:
                 else:
                     draw_text(
                         "GAME OVER", self.fonts["big"], WHITE,
-                        SCREEN_WIDTH // 2 - 135, SCREEN_HEIGHT // 2 - 100, self.window,
+                        SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
                     )
                     if self.reload_button.draw(self.window):
                         self.sounds["action"].play()

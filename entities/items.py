@@ -1,6 +1,13 @@
 import pygame
 
 from core.settings import TILE_SIZE, BLACK, RED, GREEN
+from entities.weapons import GRENADE_TYPES
+
+GRENADE_ITEMS = {
+    "Classic grenade": "classic",
+    "Atom grenade": "atom",
+    "Impact grenade": "impact",
+}
 
 
 class ItemBox(pygame.sprite.Sprite):
@@ -14,19 +21,21 @@ class ItemBox(pygame.sprite.Sprite):
 
     def update(self):
         player = self.game.player
-        if pygame.sprite.collide_rect(self, player):
-            if self.item_type == "Health":
-                player.health += 25
-                self.game.sounds["heal"].play()
-                if player.health > player.max_health:
-                    player.health = player.max_health
-            elif self.item_type == "Classic grenade":
-                player.classic_grenades += 5
-            elif self.item_type == "Atom grenade":
-                player.atom_grenades += 2
-            elif self.item_type == "Impact grenade":
-                player.impact_grenades += 10
-            self.kill()
+        if not pygame.sprite.collide_rect(self, player):
+            return
+        if self.item_type == "Health":
+            player.health = min(player.health + 25, player.max_health)
+            self.game.sounds["heal"].play()
+        else:
+            key = GRENADE_ITEMS[self.item_type]
+            cfg = GRENADE_TYPES[key]
+            setattr(player, cfg["ammo_attr"], getattr(player, cfg["ammo_attr"]) + cfg["pickup_amount"])
+            # se il tipo selezionato è scarico, passa a quello appena raccolto
+            selected = GRENADE_TYPES[self.game.selected_grenade]
+            if getattr(player, selected["ammo_attr"]) == 0:
+                self.game.selected_grenade = key
+            self.game.sounds["action"].play()
+        self.kill()
 
 
 class HealthBar:

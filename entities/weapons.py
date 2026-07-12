@@ -5,6 +5,29 @@ import pygame
 from core.settings import GRAVITY, TILE_SIZE
 from world.collision import check_terrain_collision
 
+GRENADE_ORDER = ["classic", "atom", "impact"]
+
+GRENADE_TYPES = {
+    "classic": {
+        "image": "classic_grenade", "expl_type": "d", "speed": 5,
+        "bounce": True, "impact": False, "damage": 50, "timer": 150,
+        "ammo_attr": "classic_grenades", "pickup_amount": 5,
+        "label": "GRANATE CLASSICHE",
+    },
+    "atom": {
+        "image": "atom_grenade", "expl_type": "c", "speed": 4,
+        "bounce": True, "impact": False, "damage": 100, "timer": 150,
+        "ammo_attr": "atom_grenades", "pickup_amount": 2,
+        "label": "GRANATE AD ATOMI",
+    },
+    "impact": {
+        "image": "impact_grenade", "expl_type": "a", "speed": 7,
+        "bounce": False, "impact": True, "damage": 25, "timer": 150,
+        "ammo_attr": "impact_grenades", "pickup_amount": 10,
+        "label": "GRANATE AD IMPATTO",
+    },
+}
+
 
 class Grenade(pygame.sprite.Sprite):
     def __init__(self, x, y, direction, timer, grenade_type, expl_type, speed, bounce, impact, damage, game):
@@ -88,14 +111,12 @@ class Grenade(pygame.sprite.Sprite):
         player = self.game.player
         if abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 2 and \
                 abs(self.rect.centery - player.rect.centery) < TILE_SIZE * 2:
-            player.health -= self.damage
-            self.game.sounds["hurt"].play()
+            player.hit(self.damage)
 
         for enemy in self.game.enemy_group:
             if abs(self.rect.centerx - enemy.rect.centerx) < TILE_SIZE * 2 and \
                     abs(self.rect.centery - enemy.rect.centery) < TILE_SIZE * 2:
-                enemy.health -= self.damage
-                self.game.sounds["hurt"].play()
+                enemy.hit(self.damage)
 
 
 class Explosion(pygame.sprite.Sprite):
