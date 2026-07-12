@@ -38,6 +38,7 @@ class Character(pygame.sprite.Sprite):
         self.move_count = 0
         self.vision = pygame.Rect(0, 0, 200, 20)
         self.hurt_cooldown = 0
+        self.contact_damage = 10
         self.idling = False
         self.idling_count = 0
 
@@ -81,7 +82,9 @@ class Character(pygame.sprite.Sprite):
         self.game.sounds["hurt"].play()
 
     def check_collision(self):
-        return check_terrain_collision(self.rect, self.tmx_data, self.game.terrain_layer_index)
+        return check_terrain_collision(
+            self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
+        )
 
     def move(self, moving_left, moving_right, sprinting=False):
         dx = 0
@@ -166,7 +169,7 @@ class Character(pygame.sprite.Sprite):
                 self.idling_count = 150
 
             if self.rect.colliderect(player.rect):
-                player.hit(10)
+                player.hit(self.contact_damage)
                 self.update_action(3)
                 self.idling = True
                 self.idling_count = 100

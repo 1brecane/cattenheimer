@@ -1,9 +1,11 @@
 import pygame
 
 from ui import button
-from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE
+from ui.button import TextButton
+from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE, DIFFICULTIES, DIFFICULTY_ORDER
 from core.assets import load_sounds, load_images, load_fonts
 from world.camera import Camera
+from world.collision import build_terrain_hitboxes
 from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
 from entities.items import ItemBox, HealthBar
@@ -32,6 +34,10 @@ class Game:
         visible_layers = list(self.tmx_data.visible_layers)
         self.terrain_layer_index = visible_layers.index(terrain_layer)
 
+        # hitbox per-tile basate sui pixel visibili (i mezzi blocchi non
+        # collidono più come tile interi)
+        self.terrain_hitboxes = build_terrain_hitboxes(self.tmx_data, self.terrain_layer_index)
+
         # Pre-render the whole map once: drawing becomes a single blit per frame
         self.map_surface = build_map_surface(self.tmx_data, 2)
 
@@ -43,6 +49,22 @@ class Game:
         self.start_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
         self.exit_button.rect.center = (SCREEN_WIDTH // 2 + 100, SCREEN_HEIGHT // 2 + 30)
         self.reload_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
+
+        # impostazioni
+        self.music_volume = 0.3
+        self.sfx_volume = 0.5
+        self.difficulty = "NORMALE"
+        self.menu_state = "main"
+
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        menu_font = self.fonts["menu"]
+        self.settings_button = TextButton((cx, cy + 120), "IMPOSTAZIONI", menu_font)
+        self.music_minus = TextButton((cx - 170, cy - 50), "-", menu_font)
+        self.music_plus = TextButton((cx + 170, cy - 50), "+", menu_font)
+        self.sfx_minus = TextButton((cx - 170, cy + 10), "-", menu_font)
+        self.sfx_plus = TextButton((cx + 170, cy + 10), "+", menu_font)
+        self.difficulty_button = TextButton((cx, cy + 80), f"DIFFICOLTA': {self.difficulty}", menu_font)
+        self.back_button = TextButton((cx, cy + 150), "INDIETRO", menu_font)
 
         # icone HUD ingrandite (le originali sono 13-16 px)
         self.hud_icons = {
@@ -91,10 +113,18 @@ class Game:
         self.all_sprites.add(self.player)
         self.health_bar = HealthBar(10, 10, self.player.health, self.player.health)
 
-        self.enemy1 = Character("Enemy1", 2000, 850, 3, 2, 100, False, self)
-        self.enemy2 = Character("Enemy2", 1300, 200, 3, 2, 200, False, self)
-        self.enemy_group.add(self.enemy1, self.enemy2)
-        self.all_sprites.add(self.enemy1, self.enemy2)
+        diff = DIFFICULTIES[self.difficulty]
+        enemy_data = [("Enemy1", 2000, 850, 100), ("Enemy2", 1300, 200, 200)]
+        for char_type, x, y, base_health in enemy_data:
+            enemy = Character(
+                char_type, x, y, 3,
+                2 * diff["speed_mult"],
+                int(base_health * diff["health_mult"]),
+                False, self,
+            )
+            enemy.contact_damage = diff["contact_damage"]
+            self.enemy_group.add(enemy)
+            self.all_sprites.add(enemy)
 
         sign1 = Sign(
             505, 880,
@@ -157,7 +187,17 @@ class Game:
                 if event.key == pygame.K_3:
                     self.selected_grenade = "impact"
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
+                    if self.start_game:
+                        # pausa: torna al menu principale
+                        self.start_game = False
+                        self.menu_state = "main"
+                        self.moving_left = False
+                        self.moving_right = False
+                        self.sprinting = False
+                    elif self.menu_state == "settings":
+                        self.menu_state = "main"
+                    else:
+                        self.running = False
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
@@ -234,6 +274,78 @@ class Game:
                     self.player.health = self.player.max_health
 
     # ------------------------------------------------------------------
+    # Menus
+    # ------------------------------------------------------------------
+
+    def apply_audio_settings(self):
+        pygame.mixer.music.set_volume(self.music_volume)
+        for sound in self.sounds.values():
+            sound.set_volume(self.sfx_volume)
+
+    def _arm_menu_buttons(self):
+        for b in (self.settings_button, self.music_minus, self.music_plus,
+                  self.sfx_minus, self.sfx_plus, self.difficulty_button, self.back_button):
+            b.arm()
+
+    def draw_main_menu(self):
+        draw_text(
+            "CATTENHEIMER", self.fonts["big"], WHITE,
+            SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
+        )
+        if self.start_button.draw(self.window):
+            self.sounds["action"].play()
+            self.start_game = True
+        if self.exit_button.draw(self.window):
+            self.sounds["action"].play()
+            self.running = False
+        if self.settings_button.draw(self.window):
+            self.sounds["action"].play()
+            self.menu_state = "settings"
+            self._arm_menu_buttons()
+
+    def draw_settings_menu(self):
+        cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        draw_text("IMPOSTAZIONI", self.fonts["big"], WHITE, cx, cy - 160, self.window, center=True)
+
+        draw_text(
+            f"MUSICA: {round(self.music_volume * 100)}%",
+            self.fonts["menu"], WHITE, cx, cy - 50, self.window, center=True,
+        )
+        draw_text(
+            f"EFFETTI: {round(self.sfx_volume * 100)}%",
+            self.fonts["menu"], WHITE, cx, cy + 10, self.window, center=True,
+        )
+
+        if self.music_minus.draw(self.window):
+            self.music_volume = max(round(self.music_volume - 0.1, 1), 0.0)
+            self.apply_audio_settings()
+            self.sounds["action"].play()
+        if self.music_plus.draw(self.window):
+            self.music_volume = min(round(self.music_volume + 0.1, 1), 1.0)
+            self.apply_audio_settings()
+            self.sounds["action"].play()
+        if self.sfx_minus.draw(self.window):
+            self.sfx_volume = max(round(self.sfx_volume - 0.1, 1), 0.0)
+            self.apply_audio_settings()
+            self.sounds["action"].play()
+        if self.sfx_plus.draw(self.window):
+            self.sfx_volume = min(round(self.sfx_volume + 0.1, 1), 1.0)
+            self.apply_audio_settings()
+            self.sounds["action"].play()
+
+        if self.difficulty_button.draw(self.window):
+            idx = DIFFICULTY_ORDER.index(self.difficulty)
+            self.difficulty = DIFFICULTY_ORDER[(idx + 1) % len(DIFFICULTY_ORDER)]
+            self.difficulty_button.set_text(f"DIFFICOLTA': {self.difficulty}")
+            self.restart_level()  # la nuova difficoltà riavvia il livello
+            self.sounds["action"].play()
+
+        if self.back_button.draw(self.window):
+            self.sounds["action"].play()
+            self.menu_state = "main"
+            self._arm_menu_buttons()
+
+    # ------------------------------------------------------------------
     # Drawing helpers
     # ------------------------------------------------------------------
 
@@ -287,16 +399,10 @@ class Game:
 
             if not self.start_game:
                 draw_parallax_bg(self.camera, self.images["bg_layers"], self.window)
-                draw_text(
-                    "CATTENHEIMER", self.fonts["big"], WHITE,
-                    SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80, self.window, center=True,
-                )
-                if self.start_button.draw(self.window):
-                    self.sounds["action"].play()
-                    self.start_game = True
-                if self.exit_button.draw(self.window):
-                    self.sounds["action"].play()
-                    self.running = False
+                if self.menu_state == "settings":
+                    self.draw_settings_menu()
+                else:
+                    self.draw_main_menu()
             else:
                 self.camera.update(self.player)
                 draw_parallax_bg(self.camera, self.images["bg_layers"], self.window)

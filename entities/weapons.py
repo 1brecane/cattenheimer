@@ -49,7 +49,9 @@ class Grenade(pygame.sprite.Sprite):
         self.exploded = False
 
     def check_collision(self):
-        return check_terrain_collision(self.rect, self.tmx_data, self.game.terrain_layer_index)
+        return check_terrain_collision(
+            self.rect, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
+        )
 
     def update(self):
         self.vel_y += GRAVITY

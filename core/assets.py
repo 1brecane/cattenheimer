@@ -53,5 +53,6 @@ def load_fonts():
     big.set_italic(True)
     return {
         "small": pygame.font.Font("Assets/fonts/PixelOperator8.ttf", 12),
+        "menu": pygame.font.Font("Assets/fonts/PixelOperator8.ttf", 18),
         "big": big,
     }

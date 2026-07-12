@@ -9,3 +9,10 @@ RED = (229, 101, 46)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (102, 146, 61)
+
+DIFFICULTY_ORDER = ["FACILE", "NORMALE", "DIFFICILE"]
+DIFFICULTIES = {
+    "FACILE": {"health_mult": 0.6, "contact_damage": 5, "speed_mult": 1.0},
+    "NORMALE": {"health_mult": 1.0, "contact_damage": 10, "speed_mult": 1.0},
+    "DIFFICILE": {"health_mult": 1.5, "contact_damage": 20, "speed_mult": 1.25},
+}
