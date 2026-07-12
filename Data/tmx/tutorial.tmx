@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.1" orientation="orthogonal" renderorder="right-down" width="100" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="19" nextobjectid="12">
+<map version="1.10" tiledversion="1.11.1" orientation="orthogonal" renderorder="right-down" width="100" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="20" nextobjectid="24">
  <tileset firstgid="1" source="../tsx/tiles.tsx"/>
  <layer id="4" name="cave_background" width="100" height="40">
   <data encoding="csv">
@@ -268,4 +268,66 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="19" name="entities">
+  <object id="12" name="player" x="250" y="250"/>
+  <object id="13" name="enemy" x="1000" y="425">
+   <properties>
+    <property name="char_type" value="Enemy1"/>
+    <property name="health" type="int" value="100"/>
+    <property name="chase_mult" type="float" value="1.2"/>
+   </properties>
+  </object>
+  <object id="14" name="enemy" x="650" y="100">
+   <properties>
+    <property name="char_type" value="Enemy2"/>
+    <property name="health" type="int" value="200"/>
+    <property name="chase_mult" type="float" value="1.6"/>
+   </properties>
+  </object>
+  <object id="15" name="item" x="925" y="172.5">
+   <properties>
+    <property name="item_type" value="Health"/>
+   </properties>
+  </object>
+  <object id="16" name="item" x="875" y="155">
+   <properties>
+    <property name="item_type" value="Atom grenade"/>
+   </properties>
+  </object>
+  <object id="17" name="item" x="1400" y="235">
+   <properties>
+    <property name="item_type" value="Classic grenade"/>
+   </properties>
+  </object>
+  <object id="18" name="item" x="300" y="100">
+   <properties>
+    <property name="item_type" value="Classic grenade"/>
+   </properties>
+  </object>
+  <object id="19" name="item" x="1162.5" y="587.5">
+   <properties>
+    <property name="item_type" value="Impact grenade"/>
+   </properties>
+  </object>
+  <object id="20" name="item" x="25" y="362.5">
+   <properties>
+    <property name="item_type" value="Impact grenade"/>
+   </properties>
+  </object>
+  <object id="21" name="sign" x="252.5" y="440">
+   <properties>
+    <property name="text" value="Benvenuto!, premi 'a' per andare a sinistra, 'd' per andare a destra e 'space bar' per saltare, tieni premuto 'shift' mentre cammini per correre, (la corsa e i salti consumano la barra gialla!), procedi verso destra ed entra nella grotta!"/>
+   </properties>
+  </object>
+  <object id="22" name="sign" x="1000" y="525">
+   <properties>
+    <property name="text" value="Fai attenzione al nemico!, se ti avvicini ti farà danno, prendi le GRANATE AD IMPATTO qui sotto, tieni premuto 'f' per mirare, e rilascia per lanciare: più a lungo miri più lontano arriva!"/>
+   </properties>
+  </object>
+  <object id="23" name="sign" x="1040" y="225">
+   <properties>
+    <property name="text" value="Molto bene!, esplora la mappa e cerca altre granate se vuoi, (cambia tipo con '1' '2' '3' o con la rotella del mouse), quando sei pronto affronta il boss salendo nell'isola!"/>
+   </properties>
+  </object>
+ </objectgroup>
 </map>

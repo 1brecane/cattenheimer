@@ -114,12 +114,12 @@ class Grenade(pygame.sprite.Sprite):
         player = self.game.player
         if abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 2 and \
                 abs(self.rect.centery - player.rect.centery) < TILE_SIZE * 2:
-            player.hit(self.damage)
+            player.hit(self.damage, self.rect.centerx)
 
         for enemy in self.game.enemy_group:
             if abs(self.rect.centerx - enemy.rect.centerx) < TILE_SIZE * 2 and \
                     abs(self.rect.centery - enemy.rect.centery) < TILE_SIZE * 2:
-                enemy.hit(self.damage)
+                enemy.hit(self.damage, self.rect.centerx)
 
 
 class Explosion(pygame.sprite.Sprite):

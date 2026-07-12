@@ -1,11 +1,16 @@
+import json
+
 import pygame
 
 from ui import button
 from ui.button import TextButton
-from core.settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, WHITE, DIFFICULTIES, DIFFICULTY_ORDER
+from core.settings import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GRAVITY, WHITE,
+    DIFFICULTIES, DIFFICULTY_ORDER,
+)
 from core.assets import load_sounds, load_images, load_fonts
 from world.camera import Camera
-from world.collision import build_terrain_geometry
+from world.collision import build_terrain_geometry, check_terrain_collision
 from world.renderer import draw_text, draw_parallax_bg, draw_map, load_map, build_map_surface
 from entities.character import Character
 from entities.items import ItemBox, HealthBar, StaminaBar
@@ -51,11 +56,13 @@ class Game:
         self.exit_button.rect.center = (SCREEN_WIDTH // 2 + 100, SCREEN_HEIGHT // 2 + 30)
         self.reload_button.rect.center = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 30)
 
-        # impostazioni
+        # impostazioni (con eventuali valori salvati dall'ultima sessione)
         self.music_volume = 0.3
         self.sfx_volume = 0.5
         self.difficulty = "NORMALE"
         self.menu_state = "main"
+        self.load_user_settings()
+        self.apply_audio_settings()
 
         cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
         menu_font = self.fonts["menu"]
@@ -82,8 +89,8 @@ class Game:
 
         self.moving_left = False
         self.moving_right = False
-        self.grenade = False
-        self.grenade_thrown = False
+        self.aiming = False
+        self.aim_charge = 0.0
         self.selected_grenade = "classic"
         self.sprinting = False
 
@@ -97,58 +104,39 @@ class Game:
     # ------------------------------------------------------------------
 
     def setup_level(self):
-        item_data = [
-            ("Health", 1850, 345),
-            ("Atom grenade", 1750, 310),
-            ("Classic grenade", 2800, 470),
-            ("Classic grenade", 600, 200),
-            ("Impact grenade", 2325, 1175),
-            ("Impact grenade", 50, 725),
-        ]
-        for item_type, x, y in item_data:
-            box = ItemBox(item_type, x, y, self)
-            self.item_box_group.add(box)
-            self.all_sprites.add(box)
+        """Costruisce il livello dagli oggetti definiti nella mappa Tiled
+        (layer "entities"): spawn del player, nemici, item e cartelli."""
+        diff = DIFFICULTIES[self.difficulty]
+        map_scale = 2
 
-        self.player = Character("Player", 500, 500, 3, 3, 100, True, self)
-        self.all_sprites.add(self.player)
+        for obj in self.tmx_data.objects:
+            x, y = obj.x * map_scale, obj.y * map_scale
+            if obj.name == "player":
+                self.player = Character("Player", x, y, 3, 3, 100, True, self)
+                self.all_sprites.add(self.player)
+            elif obj.name == "enemy":
+                enemy = Character(
+                    obj.properties["char_type"], x, y, 3,
+                    2 * diff["speed_mult"],
+                    int(obj.properties["health"] * diff["health_mult"]),
+                    False, self,
+                )
+                enemy.contact_damage = diff["contact_damage"]
+                enemy.chase_mult = float(obj.properties.get("chase_mult", 1.2))
+                enemy.steps_up = False
+                self.enemy_group.add(enemy)
+                self.all_sprites.add(enemy)
+            elif obj.name == "item":
+                box = ItemBox(obj.properties["item_type"], x, y, self)
+                self.item_box_group.add(box)
+                self.all_sprites.add(box)
+            elif obj.name == "sign":
+                sign = Sign(x, y, obj.properties["text"], self)
+                self.sign_group.add(sign)
+                self.all_sprites.add(sign)
+
         self.health_bar = HealthBar(10, 10, self.player.health, self.player.health)
         self.stamina_bar = StaminaBar(10, 31, self.player.max_stamina)
-
-        diff = DIFFICULTIES[self.difficulty]
-        enemy_data = [("Enemy1", 2000, 850, 100), ("Enemy2", 1300, 200, 200)]
-        for char_type, x, y, base_health in enemy_data:
-            enemy = Character(
-                char_type, x, y, 3,
-                2 * diff["speed_mult"],
-                int(base_health * diff["health_mult"]),
-                False, self,
-            )
-            enemy.contact_damage = diff["contact_damage"]
-            self.enemy_group.add(enemy)
-            self.all_sprites.add(enemy)
-
-        sign1 = Sign(
-            505, 880,
-            "Benvenuto!, premi 'a' per andare a sinistra, 'd' per andare a destra e 'space bar' per saltare, "
-            "puoi usare 'shift' mentre cammini per correre, procedi verso destra ed entra nella grotta!",
-            self,
-        )
-        sign2 = Sign(
-            2000, 1050,
-            "Fai attenzione al nemico!, se ti avvicini ti farà danno, prendi le GRANATE AD IMPATTO quì sotto, "
-            "premi il tato '3' per selezionarle e poi 'f' per usarle, (è macchinoso lo so ci sto lavorando)",
-            self,
-        )
-        sign3 = Sign(
-            2080, 450,
-            "Molto bene!, esplora la mappa e cerca altre granate se vuoi, (Per selezionare le GRANATE CLASSICHE "
-            "premi '1', per le GRANATE AD ATOMI premi '2', per le GRANATE AD IMPATTO premi '3'), quando sei pronto "
-            "affronta il boss salendo nell'isola!",
-            self,
-        )
-        self.sign_group.add(sign1, sign2, sign3)
-        self.all_sprites.add(sign1, sign2, sign3)
 
     def restart_level(self):
         self.all_sprites.empty()
@@ -178,8 +166,10 @@ class Game:
                 if event.key == pygame.K_SPACE:
                     self.player.jump = True
                 if event.key == pygame.K_f:
-                    self.grenade = True
-                    self.player.action_done = True
+                    cfg = GRENADE_TYPES[self.selected_grenade]
+                    if getattr(self.player, cfg["ammo_attr"]) > 0:
+                        self.aiming = True
+                        self.aim_charge = 0.0
                 if event.key == pygame.K_1:
                     self.selected_grenade = "classic"
                 if event.key == pygame.K_2:
@@ -195,6 +185,7 @@ class Game:
                         self.moving_right = False
                         self.sprinting = False
                     elif self.menu_state == "settings":
+                        self.save_user_settings()
                         self.menu_state = "main"
                     else:
                         self.running = False
@@ -209,9 +200,9 @@ class Game:
                 if event.key == pygame.K_SPACE:
                     self.player.jump = False
                 if event.key == pygame.K_f:
-                    self.grenade = False
-                    self.grenade_thrown = False
-                    self.player.action_done = False
+                    if self.aiming and self.player.alive:
+                        self.throw_grenade()
+                    self.aiming = False
 
             # rotella del mouse: scorre i tipi di granata
             if event.type == pygame.MOUSEWHEEL and self.start_game:
@@ -222,24 +213,50 @@ class Game:
     # Grenade logic
     # ------------------------------------------------------------------
 
-    def handle_grenades(self):
-        if not self.grenade or self.grenade_thrown:
-            return
+    def grenade_spawn_point(self):
+        return (
+            self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
+            self.player.rect.centery + (0.3 * self.player.rect.size[1]),
+        )
+
+    def aim_speed(self, cfg):
+        """Velocità di lancio: cresce col tempo di mira (70% -> 130%)."""
+        return cfg["speed"] * (0.7 + 0.6 * self.aim_charge)
+
+    def throw_grenade(self):
         cfg = GRENADE_TYPES[self.selected_grenade]
         ammo = getattr(self.player, cfg["ammo_attr"])
         if ammo <= 0:
             return
+        x, y = self.grenade_spawn_point()
         g = Grenade(
-            self.player.rect.centerx + (0.3 * self.player.rect.size[0] * self.player.direction),
-            self.player.rect.centery + (0.3 * self.player.rect.size[1]),
-            self.player.direction, cfg["timer"],
+            x, y, self.player.direction, cfg["timer"],
             self.images[cfg["image"]], cfg["expl_type"],
-            cfg["speed"], cfg["bounce"], cfg["impact"], cfg["damage"], self,
+            self.aim_speed(cfg), cfg["bounce"], cfg["impact"], cfg["damage"], self,
         )
         self.grenade_group.add(g)
         self.all_sprites.add(g)
         setattr(self.player, cfg["ammo_attr"], ammo - 1)
-        self.grenade_thrown = True
+
+    def draw_aim_arc(self):
+        """Anteprima della traiettoria: simula la fisica della granata."""
+        cfg = GRENADE_TYPES[self.selected_grenade]
+        x, y = self.grenade_spawn_point()
+        vx = self.player.direction * self.aim_speed(cfg)
+        vy = -10
+        for step in range(1, 75):
+            vy += GRAVITY
+            y += vy
+            x += vx
+            point = pygame.Rect(int(x) - 2, int(y) - 2, 4, 4)
+            if check_terrain_collision(
+                point, self.tmx_data, self.terrain_layer_index, self.terrain_hitboxes_full
+            ):
+                break
+            if step % 4 == 0:
+                pos = (int(x + self.camera.camera.x), int(y + self.camera.camera.y))
+                pygame.draw.circle(self.window, (0, 0, 0), pos, 4)
+                pygame.draw.circle(self.window, WHITE, pos, 2)
 
     # ------------------------------------------------------------------
     # Player animation state machine
@@ -285,7 +302,7 @@ class Game:
         elif moving:
             self.player.update_action(1)
             self.player.still_cooldown = 400
-        elif self.grenade:
+        elif self.aiming:
             self.player.update_action(3)
             self.player.still_cooldown = 400
         else:
@@ -301,6 +318,30 @@ class Game:
     # ------------------------------------------------------------------
     # Menus
     # ------------------------------------------------------------------
+
+    SETTINGS_PATH = "settings.json"
+
+    def load_user_settings(self):
+        try:
+            with open(self.SETTINGS_PATH) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return
+        self.music_volume = min(max(float(data.get("music_volume", self.music_volume)), 0.0), 1.0)
+        self.sfx_volume = min(max(float(data.get("sfx_volume", self.sfx_volume)), 0.0), 1.0)
+        if data.get("difficulty") in DIFFICULTIES:
+            self.difficulty = data["difficulty"]
+
+    def save_user_settings(self):
+        try:
+            with open(self.SETTINGS_PATH, "w") as f:
+                json.dump({
+                    "music_volume": self.music_volume,
+                    "sfx_volume": self.sfx_volume,
+                    "difficulty": self.difficulty,
+                }, f, indent=2)
+        except OSError:
+            pass
 
     def apply_audio_settings(self):
         pygame.mixer.music.set_volume(self.music_volume)
@@ -367,6 +408,7 @@ class Game:
 
         if self.back_button.draw(self.window):
             self.sounds["action"].play()
+            self.save_user_settings()
             self.menu_state = "main"
             self._arm_menu_buttons()
 
@@ -444,7 +486,9 @@ class Game:
                     sign.draw_text_overlay()
 
                 if self.player.alive:
-                    self.handle_grenades()
+                    if self.aiming:
+                        self.aim_charge = min(self.aim_charge + 1 / 45, 1.0)
+                        self.draw_aim_arc()
                     self.update_player_animation()
                     self.player.move(self.moving_left, self.moving_right, self.sprinting)
 
@@ -474,4 +518,5 @@ class Game:
             self.handle_events()
             pygame.display.update()
 
+        self.save_user_settings()
         pygame.quit()

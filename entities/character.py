@@ -3,7 +3,7 @@ import random
 
 import pygame
 
-from core.settings import GRAVITY, TILE_SIZE
+from core.settings import GRAVITY
 from world.collision import check_terrain_collision, slope_surface_y
 
 
@@ -13,15 +13,12 @@ class Character(pygame.sprite.Sprite):
         self.game = game
         self.tmx_data = game.tmx_data
         self.alive = True
-        self.action_done = False
         self.sprinting_possibility = sprinting_possibility
         self.char_type = char_type
         self.speed = speed
         self.classic_grenades = 0
         self.atom_grenades = 0
         self.impact_grenades = 0
-        self.shoot_cooldown = 0
-        self.start_grenades = 0
         self.health = health
         self.max_health = self.health
         self.stamina = 100
@@ -37,16 +34,21 @@ class Character(pygame.sprite.Sprite):
         self.action = 0
         self.update_time = pygame.time.get_ticks()
         self.still_cooldown = 400
-        self.move_count = 0
         self.vision = pygame.Rect(0, 0, 200, 20)
         self.hurt_cooldown = 0
         self.contact_damage = 10
+        self.knockback = 0.0
+        # i nemici non salgono i gradini automaticamente: restano nella loro zona
+        self.steps_up = True
         # se impostato, il frame è scelto dalla fisica (salto/caduta)
         # invece che dal timer dell'animazione
         self.manual_frame = None
         self.landing_timer = 0
-        self.idling = False
-        self.idling_count = 0
+        # stato AI (solo nemici)
+        self.chase_mult = 1.2
+        self.speed_mult = 1.0
+        self.idle_timer = 0
+        self.patrol_dist = 0
 
         animation_types = ["Idle", "Walking", "Jumping", "Action", "Running", "Death", "Cleaning"]
         idle_frames = None
@@ -74,17 +76,20 @@ class Character(pygame.sprite.Sprite):
     def update(self):
         self.update_animation()
         self.check_alive()
-        if self.shoot_cooldown > 0:
-            self.shoot_cooldown -= 1
         if self.hurt_cooldown > 0:
             self.hurt_cooldown -= 1
 
-    def hit(self, damage):
-        """Applica danno con frame di invulnerabilità e feedback sonoro."""
+    def hit(self, damage, source_x=None):
+        """Applica danno con frame di invulnerabilità, knockback e suono."""
         if self.hurt_cooldown > 0 or not self.alive:
             return
         self.health -= damage
         self.hurt_cooldown = 45
+        if source_x is not None:
+            # spinta via dalla sorgente del danno, con piccolo balzo
+            self.knockback = 6.0 if self.rect.centerx >= source_x else -6.0
+            self.vel_y = -4
+            self.in_air = True
         self.game.sounds["hurt"].play()
 
     def check_collision(self):
@@ -100,15 +105,21 @@ class Character(pygame.sprite.Sprite):
         dy = 0
         sprint_active = sprinting and self.can_sprint() and (moving_left or moving_right)
 
+        base_speed = self.speed * self.speed_mult
         if moving_left:
-            dx = -self.speed * 2 if sprint_active else -self.speed
+            dx = -base_speed * 2 if sprint_active else -base_speed
             self.flip = True
             self.direction = -1
 
         if moving_right:
-            dx = self.speed * 2 if sprint_active else self.speed
+            dx = base_speed * 2 if sprint_active else base_speed
             self.flip = False
             self.direction = 1
+
+        # spinta da knockback, si smorza da sola
+        if abs(self.knockback) > 0.5:
+            dx += self.knockback
+        self.knockback *= 0.85
 
         # stamina: si consuma correndo e saltando, si rigenera altrimenti;
         # a zero lo sprint resta bloccato finché non si ricarica un po'
@@ -156,7 +167,7 @@ class Character(pygame.sprite.Sprite):
         collision_rect = self.check_collision()
         if collision_rect:
             stepped = False
-            if dx != 0 and not self.in_air:
+            if dx != 0 and not self.in_air and self.steps_up:
                 stepped = self.try_step_up(collision_rect)
             if not stepped:
                 if dx > 0:
@@ -216,53 +227,71 @@ class Character(pygame.sprite.Sprite):
             return False
         return True
 
+    def cliff_ahead(self, direction):
+        """True se un passo in quella direzione porta nel vuoto."""
+        if self.in_air:
+            return False
+        front_x = self.rect.right + 6 if direction > 0 else self.rect.left - 6
+        probe = pygame.Rect(front_x - 3, self.rect.bottom, 6, self.tmx_data.tileheight * 2)
+        if check_terrain_collision(
+            probe, self.tmx_data, self.game.terrain_layer_index, self.game.terrain_hitboxes
+        ):
+            return False
+        shallow = pygame.Rect(front_x - 3, self.rect.bottom - 2, 6, 2)
+        surf = slope_surface_y(
+            shallow, self.tmx_data, self.game.terrain_layer_index,
+            self.game.terrain_heightmaps, probe=self.tmx_data.tileheight * 2,
+        )
+        return surf is None
+
     def ai(self, player):
-        if self.alive and player.alive:
-            if not self.idling and random.randint(1, 200) == 1:
+        if not (self.alive and player.alive):
+            return
+
+        # attacco a contatto
+        if self.rect.colliderect(player.rect):
+            player.hit(self.contact_damage, self.rect.centerx)
+            self.update_action(3)
+            self.idle_timer = 45
+            return
+
+        # il campo visivo segue sempre la direzione dello sguardo
+        self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
+
+        if self.vision.colliderect(player.rect):
+            # inseguimento (i boss sono più rapidi), senza buttarsi nel vuoto
+            self.idle_timer = 0
+            self.speed_mult = self.chase_mult
+            toward_right = self.rect.centerx < player.rect.centerx
+            if self.cliff_ahead(1 if toward_right else -1):
                 self.update_action(0)
-                self.idling = True
-                self.idling_count = 150
-
-            if self.rect.colliderect(player.rect):
-                player.hit(self.contact_damage)
-                self.update_action(3)
-                self.idling = True
-                self.idling_count = 100
-
-            if self.vision.colliderect(player.rect):
-                self.idling = False
-                if self.rect.centerx < player.rect.centerx:
-                    ai_moving_right = True
-                    ai_moving_left = False
-                else:
-                    ai_moving_right = False
-                    ai_moving_left = True
-                self.move(ai_moving_left, ai_moving_right)
-                self.update_action(1)
-                self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
             else:
-                self.idling = True
-                self.idling_count -= 1
-                if self.idling_count <= 0:
-                    self.idling = False
-                if not self.idling:
-                    if self.direction == 1:
-                        ai_moving_right = True
-                    else:
-                        ai_moving_right = False
-                    ai_moving_left = not ai_moving_right
-                    self.move(ai_moving_left, ai_moving_right)
-                    self.update_action(1)
-                    self.move_count += 1
-                    self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
+                self.move(not toward_right, toward_right)
+                self.update_action(1)
+            return
 
-                    if self.move_count > TILE_SIZE:
-                        self.direction *= -1
-                        self.move_count *= -1
-                else:
-                    self.idling_count -= 1
-                    if self.idling_count == 0:
-                        self.idling = False
+        # pattugliamento
+        self.speed_mult = 1.0
+        if self.idle_timer > 0:
+            self.idle_timer -= 1
+            self.update_action(0)
+            return
+        if random.randint(1, 240) == 1:
+            self.idle_timer = 90
+            return
+
+        if self.cliff_ahead(self.direction):
+            self.direction *= -1
+            self.patrol_dist = 0
+
+        old_x = self.rect.x
+        self.move(self.direction < 0, self.direction > 0)
+        self.update_action(1)
+        self.patrol_dist += abs(self.rect.x - old_x)
+        if self.rect.x == old_x or self.patrol_dist > 160:
+            # muro davanti o fine del giro di ronda: torna indietro
+            self.direction *= -1
+            self.patrol_dist = 0
 
     def update_animation(self):
         if self.manual_frame is not None:
@@ -294,6 +323,3 @@ class Character(pygame.sprite.Sprite):
             self.alive = False
             self.manual_frame = None
             self.update_action(5)
-
-    def draw(self, surface):
-        surface.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
