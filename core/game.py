@@ -91,6 +91,7 @@ class Game:
         self.moving_right = False
         self.aiming = False
         self.aim_charge = 0.0
+        self.throw_timer = 0
         self.selected_grenade = "classic"
         self.sprinting = False
 
@@ -237,6 +238,7 @@ class Game:
         self.grenade_group.add(g)
         self.all_sprites.add(g)
         setattr(self.player, cfg["ammo_attr"], ammo - 1)
+        self.throw_timer = 8
 
     def draw_aim_arc(self):
         """Anteprima della traiettoria: simula la fisica della granata."""
@@ -303,7 +305,15 @@ class Game:
             self.player.update_action(1)
             self.player.still_cooldown = 400
         elif self.aiming:
+            # hold the wind-up pose instead of looping the throw animation
             self.player.update_action(3)
+            self.player.manual_frame = 0
+            self.player.still_cooldown = 400
+        elif self.throw_timer > 0:
+            # brief release flourish right after throwing
+            self.throw_timer -= 1
+            self.player.update_action(3)
+            self.player.manual_frame = 1
             self.player.still_cooldown = 400
         else:
             self.player.still_cooldown -= 1
