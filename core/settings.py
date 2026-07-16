@@ -21,3 +21,9 @@ DIFFICULTIES = {
     "NORMAL": {"health_mult": 1.0, "contact_damage": 10, "speed_mult": 1.0},
     "HARD": {"health_mult": 1.5, "contact_damage": 20, "speed_mult": 1.25},
 }
+
+LEVEL_ORDER = ["Tutorial", "Level 2"]
+LEVELS = {
+    "Tutorial": "Data/tmx/tutorial.tmx",
+    "Level 2": "Data/tmx/level2.tmx",
+}

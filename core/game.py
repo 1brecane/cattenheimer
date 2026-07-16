@@ -6,7 +6,7 @@ from ui import button
 from ui.button import TextButton
 from core.settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GRAVITY, WHITE,
-    DIFFICULTIES, DIFFICULTY_ORDER,
+    DIFFICULTIES, DIFFICULTY_ORDER, LEVELS, LEVEL_ORDER,
 )
 from core.assets import load_sounds, load_images, load_fonts
 from world.camera import Camera
@@ -27,6 +27,7 @@ class Game:
         self.music_volume = 0.3
         self.sfx_volume = 0.5
         self.difficulty = "NORMAL"
+        self.level = "Tutorial"
         self.fullscreen = False
         self.menu_state = "main"
         self.load_user_settings()
@@ -45,24 +46,7 @@ class Game:
         self.fonts = load_fonts()
         self.apply_audio_settings()
 
-        self.tmx_data = load_map("Data/tmx/tutorial.tmx")
-        self.map_width = self.tmx_data.width * self.tmx_data.tilewidth * 2
-        self.map_height = self.tmx_data.height * self.tmx_data.tileheight * 2
-
-        # Pre-compute terrain layer index (avoids repeated lookup every frame)
-        terrain_layer = self.tmx_data.get_layer_by_name("terrain")
-        visible_layers = list(self.tmx_data.visible_layers)
-        self.terrain_layer_index = visible_layers.index(terrain_layer)
-
-        # per-tile geometry from visible pixels: half blocks do not collide
-        # as full tiles and slopes get a height profile
-        self.terrain_hitboxes, self.terrain_heightmaps, self.terrain_hitboxes_full = \
-            build_terrain_geometry(self.tmx_data, self.terrain_layer_index)
-
-        # Pre-render the whole map once: drawing becomes a single blit per frame
-        self.map_surface = build_map_surface(self.tmx_data, 2)
-
-        self.camera = Camera(self.map_width, self.map_height)
+        self.load_level(self.level)
 
         self.start_button = button.Button(SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2, self.images["start"], 3)
         self.exit_button = button.Button(SCREEN_WIDTH // 2 + 130, SCREEN_HEIGHT // 2, self.images["exit"], 3)
@@ -82,7 +66,8 @@ class Game:
             (cx, cy + 40), f"FULLSCREEN: {'ON' if self.fullscreen else 'OFF'}", menu_font
         )
         self.difficulty_button = TextButton((cx, cy + 95), f"DIFFICULTY: {self.difficulty}", menu_font)
-        self.back_button = TextButton((cx, cy + 160), "BACK", menu_font)
+        self.level_button = TextButton((cx, cy + 150), f"LEVEL: {self.level}", menu_font)
+        self.back_button = TextButton((cx, cy + 205), "BACK", menu_font)
 
         # enlarged HUD icons (originals are 13-16 px)
         self.hud_icons = {
@@ -113,6 +98,29 @@ class Game:
     # ------------------------------------------------------------------
     # Level setup / restart
     # ------------------------------------------------------------------
+
+    def load_level(self, level_name):
+        """Loads the Tiled map for level_name and rebuilds everything
+        derived from it (collision geometry, pre-rendered surface, camera)."""
+        self.level = level_name
+        self.tmx_data = load_map(LEVELS[level_name])
+        self.map_width = self.tmx_data.width * self.tmx_data.tilewidth * 2
+        self.map_height = self.tmx_data.height * self.tmx_data.tileheight * 2
+
+        # Pre-compute terrain layer index (avoids repeated lookup every frame)
+        terrain_layer = self.tmx_data.get_layer_by_name("terrain")
+        visible_layers = list(self.tmx_data.visible_layers)
+        self.terrain_layer_index = visible_layers.index(terrain_layer)
+
+        # per-tile geometry from visible pixels: half blocks do not collide
+        # as full tiles and slopes get a height profile
+        self.terrain_hitboxes, self.terrain_heightmaps, self.terrain_hitboxes_full = \
+            build_terrain_geometry(self.tmx_data, self.terrain_layer_index)
+
+        # Pre-render the whole map once: drawing becomes a single blit per frame
+        self.map_surface = build_map_surface(self.tmx_data, 2)
+
+        self.camera = Camera(self.map_width, self.map_height)
 
     def setup_level(self):
         """Builds the level from the objects defined in the Tiled map
@@ -354,6 +362,8 @@ class Game:
         self.fullscreen = bool(data.get("fullscreen", self.fullscreen))
         if data.get("difficulty") in DIFFICULTIES:
             self.difficulty = data["difficulty"]
+        if data.get("level") in LEVELS:
+            self.level = data["level"]
 
     def save_user_settings(self):
         try:
@@ -363,6 +373,7 @@ class Game:
                     "sfx_volume": self.sfx_volume,
                     "fullscreen": self.fullscreen,
                     "difficulty": self.difficulty,
+                    "level": self.level,
                 }, f, indent=2)
         except OSError:
             pass
@@ -382,7 +393,7 @@ class Game:
     def _arm_menu_buttons(self):
         for b in (self.settings_button, self.music_minus, self.music_plus,
                   self.sfx_minus, self.sfx_plus, self.fullscreen_button,
-                  self.difficulty_button, self.back_button):
+                  self.difficulty_button, self.level_button, self.back_button):
             b.arm()
 
     def draw_main_menu(self):
@@ -440,6 +451,14 @@ class Game:
             self.difficulty = DIFFICULTY_ORDER[(idx + 1) % len(DIFFICULTY_ORDER)]
             self.difficulty_button.set_text(f"DIFFICULTY: {self.difficulty}")
             self.restart_level()  # a new difficulty restarts the level
+            self.sounds["action"].play()
+
+        if self.level_button.draw(self.window):
+            idx = LEVEL_ORDER.index(self.level)
+            next_level = LEVEL_ORDER[(idx + 1) % len(LEVEL_ORDER)]
+            self.load_level(next_level)
+            self.level_button.set_text(f"LEVEL: {self.level}")
+            self.restart_level()
             self.sounds["action"].play()
 
         if self.back_button.draw(self.window):

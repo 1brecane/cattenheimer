@@ -46,3 +46,10 @@ Open `Data/tmx/tutorial.tmx` in Tiled: the `entities` object layer holds
 the player spawn, enemies (with `char_type`, `health`, `chase_mult`
 properties), items (`item_type`) and signs (`text`). The game reads them
 at load time — no coordinates in the code.
+
+## Adding a level
+
+Any `.tmx` map with a `terrain` layer (tile layer, `collision=true`
+property) and at least one `player` spawn object works. Register it in
+`LEVELS`/`LEVEL_ORDER` in `core/settings.py`; it then shows up in the
+settings menu's `LEVEL` selector.
